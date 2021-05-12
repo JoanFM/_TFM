@@ -30,7 +30,7 @@ class QuerySparseInvertedIndexer:
 
     def search(self, vector: 'scipy.sparse.csr_matrix', top_k: int, **kwargs):
         result = []
-        for index in vector.indices():
+        for index in vector.indices:
             result.extend(self.inverted_index[index])
 
         return result[:top_k]
