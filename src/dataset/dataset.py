@@ -1,8 +1,9 @@
 import pandas as pd
 import os
+from PIL import Image
 
 import torch
-
+import torchvision
 import torch.utils.data as data
 
 cur_dir = os.path.dirname(os.path.abspath(__file__))
@@ -13,10 +14,18 @@ class Flickr30kDataset(data.Dataset):
     Dataset loader for Flickr30k full datasets.
     """
 
-    def __init__(self, root):
+    def __init__(self, root, transform = None):
         self.images_root = os.path.join(root, 'flickr30k_images')
         self.groups = pd.read_csv(os.path.join(root, 'results.csv'), sep='|').groupby(['image_name'])
         self.ids = [g[0] for g in self.groups]
+        self.transform = transform or torchvision.transforms.Compose([
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Resize((224, 224)),
+            torchvision.transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225],
+            ),
+        ])
 
     def __getitem__(self, index):
         """This function returns a tuple that is further passed to collate_fn
@@ -26,10 +35,10 @@ class Flickr30kDataset(data.Dataset):
         captions = group_df[' comment'].to_list()
 
         image_file_path = os.path.join(self.images_root, filename)
-        with open(image_file_path, 'rb') as fp:
-            image_buffer = fp.read()
-
-        return image_buffer, captions
+        img = Image.open(image_file_path).convert('RGB')
+        if self.transform is not None:
+            img = self.transform(img)
+        return img, img, captions[0]
 
     def __len__(self):
         return len(self.ids)

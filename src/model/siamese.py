@@ -1,5 +1,3 @@
-from typing import List
-
 import torch
 import torch.nn as nn
 
@@ -17,11 +15,12 @@ class DenseVisualFeatureExtractor:
 
         self.pool_fn = None
         self.model = getattr(models, backbone_model)(pretrained=True)
-        self.model.features.eval()
+        self.model = self.model.features.eval()
         if pool_strategy not in ('mean', 'max', None):
             raise NotImplementedError(f'unknown pool_strategy: {pool_strategy}')
         else:
-            self.pool_fn = getattr(np, pool_strategy)
+            self.pool_fn = getattr(torch, pool_strategy)
+        self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
 
     @property
     def on_gpu(self):
@@ -29,26 +28,25 @@ class DenseVisualFeatureExtractor:
 
     @property
     def output_dim(self):
-        return 256
+        return 512
 
     def _get_features(self, content):
         return self.model(content)
 
-    def _get_pooling(self, feature_map: 'np.ndarray') -> 'np.ndarray':
+    def _get_pooling(self, feature_map):
         if feature_map.ndim == 2 or self.pool_fn is None:
             return feature_map
+        # x = self.avgpool(feature_map)
+        # x = torch.flatten(x, 1)
+        # return x
         return self.pool_fn(feature_map, axis=(2, 3))
 
-    def encode(self, content: 'np.ndarray', *args, **kwargs) -> 'np.ndarray':
-
-        _input = torch.from_numpy(content.astype('float32'))
-        if self.on_gpu:
-            _input = _input.cuda()
-        _feature = self._get_features(_input).detach()
+    def encode(self, content, *args, **kwargs):
+        _feature = self._get_features(content).detach()
         if self.on_gpu:
             _feature = _feature.cpu()
-        _feature = _feature.numpy()
-        return self._get_pooling(_feature)
+        out = self._get_pooling(_feature)
+        return out
 
 
 class ImageSiamese(nn.Module):
@@ -75,23 +73,6 @@ class ImageSiamese(nn.Module):
 
     def forward(self, x1, x2):
         out1 = self.forward_one(x1)
-        out2 = self.forward_one(x2)
+        #out2 = self.forward_one(x2)
+        out2 = torch.Tensor(np.random.random((8, 8256)))
         return out1, out2
-
-
-class TextEncoder:
-
-    def __init__(self, vocab_path, **kwargs):
-        super().__init__()
-        from sklearn.feature_extraction.text import CountVectorizer
-        import pickle
-        with open(vocab_path, 'rb') as f:
-            self.vocab = pickle.load(f)
-
-        def mytokenizer(text):
-            return text.split()
-
-        self.vectorizer = CountVectorizer(vocabulary=self.vocab, tokenizer=mytokenizer)
-
-    def forward(self, x):
-        return self.vectorizer.transform(x)
