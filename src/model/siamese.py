@@ -36,9 +36,6 @@ class DenseVisualFeatureExtractor:
     def _get_pooling(self, feature_map):
         if feature_map.ndim == 2 or self.pool_fn is None:
             return feature_map
-        # x = self.avgpool(feature_map)
-        # x = torch.flatten(x, 1)
-        # return x
         return self.pool_fn(feature_map, axis=(2, 3))
 
     def encode(self, content, *args, **kwargs):
@@ -54,7 +51,7 @@ class ImageSiamese(nn.Module):
     def __init__(self, layer_size=None, **kwargs):
         super().__init__()
         if layer_size is None:
-            layer_size = [512, 1024, 2056, 4128, 8256]
+            layer_size = [512, 2056, 4128, 13926] #8256, 13926]
         self.feature_extractor = DenseVisualFeatureExtractor(**kwargs)
         modules = []
 
@@ -73,6 +70,5 @@ class ImageSiamese(nn.Module):
 
     def forward(self, x1, x2):
         out1 = self.forward_one(x1)
-        #out2 = self.forward_one(x2)
-        out2 = torch.Tensor(np.random.random((8, 8256)))
+        out2 = self.forward_one(x2)
         return out1, out2

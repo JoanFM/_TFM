@@ -1,22 +1,55 @@
-from sklearn.feature_extraction.text import CountVectorizer
+import os
 import pickle
+
 import torch
+from sklearn.feature_extraction.text import CountVectorizer
+
+from src.dataset.dataset import Flickr30kDataset
+
+cur_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 class TextEncoder:
 
-    def __init__(self, vocab_path, **kwargs):
+    def __init__(self, model_path, **kwargs):
         super().__init__()
-        # if vocab_path:
-        #     with open(vocab_path, 'rb') as f:
-        #         self.vocab = pickle.load(f)
-        #
-        # def mytokenizer(text):
-        #     return text.split()
-        #
-        # self.vectorizer = CountVectorizer(vocabulary=self.vocab, tokenizer=mytokenizer)
+        if model_path:
+            with open(model_path, 'rb') as f:
+                self.vectorizer = pickle.load(f)
 
     def forward(self, x):
-        import numpy as np
-        return torch.Tensor(np.random.random((len(x), 8256)))
-        #return self.vectorizer.transform(x)
+        a = torch.Tensor(self.vectorizer.transform(x).toarray())
+        print(f' a {a.size()}')
+        return a
+
+
+def get_model():
+    # 4154 words appear at least 10 times in the full 30k dataset
+    import spacy
+    nlp = spacy.load('en_core_web_sm')
+    dataset = Flickr30kDataset(root=os.path.join(cur_dir, '../../flickr30k_images'))
+    vocab = set()
+    c = []
+    for (_, captions) in dataset:
+        c.extend(captions)
+    for i, doc in enumerate(nlp.pipe(c)):
+        for token in doc:
+            if not token.is_punct and not token.is_space:
+                vocab.add(token.lemma_.lower())
+        if i % 500 == 0:
+            print(f' vocab size {len(vocab)} when processed {int(i / 5)} images')
+
+    print(f' vocab size {len(vocab)}')
+
+    def corpus():
+        for lemma in vocab:
+            yield lemma
+
+    vectorizer = CountVectorizer()
+    vectorizer.fit(corpus())
+    with open('vectorizer.pkl', 'wb') as f:
+        pickle.dump(vectorizer, f)
+
+
+if __name__ == '__main__':
+    get_model()

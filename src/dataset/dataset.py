@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import random
 from PIL import Image
 
 import torch
@@ -26,29 +27,55 @@ class Flickr30kDataset(data.Dataset):
                 std=[0.229, 0.224, 0.225],
             ),
         ])
+        self.images_length = len(self.ids)
+        self.captions_length = self.images_length * 5
 
-    def __getitem__(self, index):
-        """This function returns a tuple that is further passed to collate_fn
-        """
+    def _get_image(self, index):
         filename = self.ids[index]
-        group_df = self.groups.get_group(filename)
-        captions = group_df[' comment'].to_list()
-
         image_file_path = os.path.join(self.images_root, filename)
         img = Image.open(image_file_path).convert('RGB')
         if self.transform is not None:
             img = self.transform(img)
-        return img, img, captions[0]
+        return img
+
+    def __getitem__(self, index):
+        filename = self.ids[index]
+        group_df = self.groups.get_group(filename)
+        captions = group_df[' comment'].to_list()
+        img = self._get_image(index)
+        return img, captions
 
     def __len__(self):
-        return len(self.ids)
+        return self.images_length
+
+
+class TripletFlickr30kDataset(Flickr30kDataset):
+    """
+    Dataset loader for Flickr30k full datasets.
+    """
+    def __getitem__(self, index):
+        image_id_index = int(index / 5)
+        caption_id = int(index % 5)
+        filename = self.ids[image_id_index]
+        group_df = self.groups.get_group(filename)
+        captions = group_df[' comment'].to_list()
+        sample_negative_image_id = random.randint(0, self.images_length)
+        positive_img = self._get_image(image_id_index)
+        negative_img = self._get_image(sample_negative_image_id)
+
+        print(f' we are getting positive from {image_id_index} and negative from {sample_negative_image_id}')
+
+        return positive_img, negative_img, captions[caption_id]
+
+    def __len__(self):
+        return self.captions_length
 
 
 def get_data_loader(root, batch_size=8, shuffle=False,
                     num_workers=1):
     """Returns torch.utils.data.DataLoader for custom coco dataset."""
 
-    dataset = Flickr30kDataset(root=root)
+    dataset = TripletFlickr30kDataset(root=root)
     # Data loader
     data_loader = torch.utils.data.DataLoader(dataset=dataset,
                                               batch_size=batch_size,
@@ -57,37 +84,3 @@ def get_data_loader(root, batch_size=8, shuffle=False,
                                               num_workers=num_workers)
 
     return data_loader
-
-
-def get_vocab():
-    # 4154 words appear at least 10 times in the full 30k dataset
-    import spacy
-    from collections import Counter
-    nlp = spacy.load('en_core_web_sm')
-    dataset = Flickr30kDataset(root=os.path.join(cur_dir, '../../flickr30k_images'))
-    vocab = set()
-    vocab_count = Counter()
-    c = []
-    for (_, captions) in dataset:
-        c.extend(captions)
-    for i, doc in enumerate(nlp.pipe(c)):
-        for token in doc:
-            if not token.is_punct and not token.is_space:
-                vocab.add(token.lemma_.lower())
-                vocab_count[token.lemma_.lower()] += 1
-        if i % 500 == 0:
-            print(f' vocab size {len(vocab)} when processed {int(i / 5)} images')
-
-    print(f' vocab size {len(vocab)}')
-
-    import pickle
-    with open('vocab.pkl', 'wb') as f:
-        pickle.dump(vocab, f)
-
-    import pickle
-    with open('vocab_count.pkl', 'wb') as f:
-        pickle.dump(vocab_count, f)
-
-
-if __name__ == '__main__':
-    get_vocab()
