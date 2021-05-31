@@ -1,2 +1,2 @@
-from .siamese import ImageSiamese
+from .image import ImageEncoder
 from .text import TextEncoder

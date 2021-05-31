@@ -49,6 +49,23 @@ class Flickr30kDataset(data.Dataset):
         return self.images_length
 
 
+class SiameseFlickr30kDataset(Flickr30kDataset):
+    """
+    Dataset loader for Flickr30k full datasets.
+    """
+    def __getitem__(self, index):
+        image_id_index = int(index / 5)
+        caption_id = int(index % 5)
+        filename = self.ids[image_id_index]
+        group_df = self.groups.get_group(filename)
+        captions = group_df[' comment'].to_list()
+        positive_img = self._get_image(image_id_index)
+        return positive_img, captions[caption_id]
+
+    def __len__(self):
+        return self.captions_length
+
+
 class TripletFlickr30kDataset(Flickr30kDataset):
     """
     Dataset loader for Flickr30k full datasets.
@@ -62,9 +79,6 @@ class TripletFlickr30kDataset(Flickr30kDataset):
         sample_negative_image_id = random.randint(0, self.images_length)
         positive_img = self._get_image(image_id_index)
         negative_img = self._get_image(sample_negative_image_id)
-
-        print(f' we are getting positive from {image_id_index} and negative from {sample_negative_image_id}')
-
         return positive_img, negative_img, captions[caption_id]
 
     def __len__(self):
@@ -75,7 +89,7 @@ def get_data_loader(root, batch_size=8, shuffle=False,
                     num_workers=1):
     """Returns torch.utils.data.DataLoader for custom coco dataset."""
 
-    dataset = TripletFlickr30kDataset(root=root)
+    dataset = SiameseFlickr30kDataset(root=root)
     # Data loader
     data_loader = torch.utils.data.DataLoader(dataset=dataset,
                                               batch_size=batch_size,
