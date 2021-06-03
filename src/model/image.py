@@ -8,7 +8,6 @@ class DenseVisualFeatureExtractor:
 
     def __init__(self,
                  backbone_model: str = 'resnet101',
-                 pool_strategy: str = 'mean',
                  ):
         super().__init__()
         import torchvision.models as models
@@ -69,7 +68,6 @@ class ImageEncoder(nn.Module):
         self.sparse_encoder.to(device)
 
     def forward(self, x):
-        print(f' type {type(x)}')
         x = self.feature_extractor.encode(x)
         x = x.view(x.size()[0], -1)
         return self.sparse_encoder(x)

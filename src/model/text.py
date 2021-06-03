@@ -18,9 +18,7 @@ class TextEncoder:
                 self.vectorizer = pickle.load(f)
 
     def forward(self, x):
-        a = torch.Tensor(self.vectorizer.transform(x).toarray())
-        print(f' a {a.size()}')
-        return a
+        return torch.Tensor(self.vectorizer.transform(x).toarray())
 
 
 def get_model():
