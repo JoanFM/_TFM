@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Optional
 from collections import defaultdict
 import pickle
 
@@ -28,12 +28,15 @@ class QuerySparseInvertedIndexer:
         super().__init__(**kwargs)
         self.inverted_index = StorageLink.load_from_file(base_path)
 
-    def search(self, vector: 'scipy.sparse.csr_matrix', top_k: int, **kwargs):
+    def search(self, vector: 'scipy.sparse.csr_matrix', top_k: Optional[int], **kwargs):
         result = []
         for index in vector.indices:
             result.extend(self.inverted_index[index])
 
-        return result[:top_k]
+        if top_k:
+            return result[:top_k]
+        else:
+            return result
 
 
 class AddSparseInvertedIndexer:

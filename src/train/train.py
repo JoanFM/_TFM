@@ -16,6 +16,54 @@ cur_dir = os.path.dirname(os.path.abspath(__file__))
 l1_regularization_weight = 1e-7
 
 
+def evaluate_in_buckets_t2i(image_encoder, text_encoder, dataloader, validation_indexers_path, batch_size):
+    image_encoder.feature_extractor.model.eval()
+    image_encoder.sparse_encoder.eval()
+
+    ids = []
+    matrix = None
+    queries = None
+    query_expected_ids = []
+    num_entry = 0
+    with Bar(f'Computing test embeddings to query',
+             max=len(dataloader.dataset) / batch_size) as evaluation_bar:
+        for batch_id, (filename, image_test, caption_test) in enumerate(dataloader):
+            ids.extend(filename)
+            image_embedding = image_encoder.forward(image_test).detach().numpy()
+            text_embedding = text_encoder.forward(caption_test).detach().numpy()
+            text_sparse_embedding = csr_matrix(text_embedding)
+            # change to put image_embedding
+            matrix = csr_vappend(matrix, csr_matrix(image_embedding))
+            queries = csr_vappend(queries, text_sparse_embedding)
+            for caption in caption_test:
+                query_expected_ids.append(filename)
+            num_entry += len(caption_test)
+            evaluation_bar.next()
+    print("#" * 70)
+    print(f'Indexing image sparse embeddings')
+    with AddSparseInvertedIndexer(
+            base_path=validation_indexers_path) as indexer:
+        indexer.add(ids, matrix)
+
+    query_indexer = QuerySparseInvertedIndexer(
+        base_path=validation_indexers_path)
+    print("#" * 70)
+    print(f'Let\'s query with all text sparse embeddings')
+    with Bar(f'Querying with text embeddings', max=queries.shape[0]) as querying_bar:
+        average_hit_rate = 0
+        for i in range(queries.shape[0]):
+            query_cardinality = queries.getrow(i).getnnz()
+            number_of_buckets_found = 0
+            results = query_indexer.search(queries.getrow(i), None)
+            for result in results:
+                if result == query_expected_ids[i]:
+                    number_of_buckets_found += 1
+            average_hit_rate += (number_of_buckets_found / query_cardinality)
+        querying_bar.next()
+
+    return average_hit_rate / queries.shape[0]
+
+
 def evaluate_t2i(image_encoder, text_encoder, dataloader, validation_indexers_path):
     image_encoder.feature_extractor.model.eval()
     image_encoder.sparse_encoder.eval()
@@ -103,7 +151,7 @@ def train(output_model_path: str = '/hdd/master/tfm/output_models',
     os.makedirs(output_model_path, exist_ok=True)
     image_encoder = ImageEncoder()
     text_encoder = TextEncoder(vectorizer_path)
-    optimizer = torch.optim.Adam(image_encoder.parameters(), lr=0.01)
+    optimizer = torch.optim.Adam(image_encoder.parameters(), lr=0.02)
     optimizer.zero_grad()
     loss_fn = torch.nn.CosineEmbeddingLoss(margin=0)
 
@@ -140,8 +188,7 @@ def train(output_model_path: str = '/hdd/master/tfm/output_models',
                     optimizer.zero_grad()
                     image = image.to(device)
                     image_embedding = image_encoder.forward(image)
-                    text_embedding = text_encoder.forward(caption)
-                    text_embedding = text_embedding.to(device)
+                    text_embedding = text_encoder.forward(caption).to(device)
                     l1_regularization = torch.mean(torch.sum(image_embedding, dim=1))
                     loss = loss_fn(image_embedding, text_embedding,
                                    positive_tensor) + l1_regularization_weight * l1_regularization
@@ -153,10 +200,10 @@ def train(output_model_path: str = '/hdd/master/tfm/output_models',
                             f'[{batch_id}] \t training loss:\t {np.mean(np.array(train_loss))} \t time elapsed:\t {time.time() - time_start} s')
                         train_loss.clear()
                         time_start = time.time()
-                    if batch_id % 3000 == 0:
+                    if batch_id % 3000 == 0 and batch_id != 0:
                         torch.save(image_encoder.state_dict(),
                                    output_model_path + '/model-inter-' + str(epoch + 1) + '-' + str(batch_id) + '.pt')
-                    if batch_id % 4500 == 0:
+                    if batch_id % 4500 == 0 and batch_id != 0:
                         val_loss = validation_loop(image_encoder, text_encoder, val_data_loader, device, loss_fn,
                                                    batch_size, batch_id)
                         print(
@@ -170,10 +217,11 @@ def train(output_model_path: str = '/hdd/master/tfm/output_models',
             with open(f'train_loss-{epoch}', 'wb') as f:
                 pickle.dump(train_loss, f)
 
-            r_at_1 = evaluate_t2i(image_encoder, text_encoder, test_data_loader,
-                                  os.path.join(validation_indexers_base_path, f'epoch-{epoch}'))
+            buckets_eval = evaluate_in_buckets_t2i(image_encoder, text_encoder, test_data_loader,
+                                                   os.path.join(validation_indexers_base_path, f'epoch-{epoch}'),
+                                                   batch_size)
             print('#' * 70)
-            print(f'accuracy at the end of epoch {epoch}/{num_epochs}: ', r_at_1)
+            print(f'Buckets eval at the end of epoch {epoch}/{num_epochs}: ', buckets_eval)
             epoch_bar.next()
 
 
