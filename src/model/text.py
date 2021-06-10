@@ -3,8 +3,9 @@ import pickle
 
 import torch
 from sklearn.feature_extraction.text import CountVectorizer
+from src.model.spacy_tokenizer import spacy_tokenizer
 
-from src.dataset.dataset import Flickr30kDataset
+from src.dataset.dataset import CaptionFlickr30kDataset
 
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -23,29 +24,23 @@ class TextEncoder:
 
 def get_model():
     # 4154 words appear at least 10 times in the full 30k dataset
-    import spacy
-    nlp = spacy.load('en_core_web_sm')
-    dataset = Flickr30kDataset(root=os.path.join(cur_dir, '../../flickr30k_images'))
-    vocab = set()
-    c = []
-    for (_, captions) in dataset:
-        c.extend(captions)
-    for i, doc in enumerate(nlp.pipe(c)):
-        for token in doc:
-            if not token.is_punct and not token.is_space:
-                vocab.add(token.lemma_.lower())
-        if i % 500 == 0:
-            print(f' vocab size {len(vocab)} when processed {int(i / 5)} images')
+    train_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
+                                            split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
+                                            split='train')
+    test_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
+                                           split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
+                                           split='test')
+    val_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
+                                          split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
+                                          split='val')
 
-    print(f' vocab size {len(vocab)}')
+    corpus = [train_dataset[i][1] for i in range(len(train_dataset))] + \
+             [test_dataset[i][1] for i in range(len(test_dataset))] + \
+             [val_dataset[i][1] for i in range(len(val_dataset))]
 
-    def corpus():
-        for lemma in vocab:
-            yield lemma
-
-    vectorizer = CountVectorizer()
-    vectorizer.fit(corpus())
-    with open('vectorizer.pkl', 'wb') as f:
+    vectorizer = CountVectorizer(tokenizer=spacy_tokenizer, stop_words='english')
+    vectorizer.fit(corpus)
+    with open('vectorizer_tokenizer_stop_words.pkl', 'wb') as f:
         pickle.dump(vectorizer, f)
 
 

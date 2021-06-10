@@ -1,6 +1,5 @@
 import pandas as pd
 import os
-import random
 from PIL import Image
 
 import torch
@@ -39,18 +38,41 @@ class Flickr30kDataset(data.Dataset):
             img = self.transform(img)
         return img
 
+
+class ImageFlickr30kDataset(Flickr30kDataset):
+    """
+    Dataset loader for Flickr30k full datasets.
+    """
+
     def __getitem__(self, index):
         filename = f'{self.ids[index]}.jpg'
-        group_df = self.groups.get_group(filename)
-        captions = group_df[' comment'].to_list()
         img = self._get_image(index)
-        return filename, img, captions
+        return filename, img
 
     def __len__(self):
         return self.images_length
 
 
-class SiameseFlickr30kDataset(Flickr30kDataset):
+class CaptionFlickr30kDataset(Flickr30kDataset):
+    """
+    Dataset loader for Flickr30k full datasets.
+    """
+    def __init__(self, root, *args, **kwargs):
+        super().__init__(root=root, *args, **kwargs)
+        self.df = pd.read_csv(os.path.join(root, 'results.csv'), sep='|')
+        self.filenames = [f'{i}.jpg' for i in self.ids]
+        self.df = self.df[self.df['image_name'].isin(self.filenames)]
+        self.captions = self.df[' comment'].values
+        self.matching_filenames = self.df['image_name'].values
+
+    def __getitem__(self, index):
+        return self.matching_filenames[index], self.captions[index]
+
+    def __len__(self):
+        return self.captions_length
+
+
+class ImageCaptionFlickr30kDataset(Flickr30kDataset):
     """
     Dataset loader for Flickr30k full datasets.
     """
@@ -68,31 +90,41 @@ class SiameseFlickr30kDataset(Flickr30kDataset):
         return self.captions_length
 
 
-class TripletFlickr30kDataset(Flickr30kDataset):
-    """
-    Dataset loader for Flickr30k full datasets.
-    """
-
-    def __getitem__(self, index):
-        image_id_index = int(index / 5)
-        caption_id = int(index % 5)
-        filename = f'{self.ids[image_id_index]}.jpg'
-        group_df = self.groups.get_group(filename)
-        captions = group_df[' comment'].to_list()
-        sample_negative_image_id = random.randint(0, self.images_length)
-        positive_img = self._get_image(image_id_index)
-        negative_img = self._get_image(sample_negative_image_id)
-        return positive_img, negative_img, captions[caption_id]
-
-    def __len__(self):
-        return self.captions_length
-
-
 def get_data_loader(root, split_root, split, batch_size=8, shuffle=False,
                     num_workers=1):
     """Returns torch.utils.data.DataLoader for custom coco dataset."""
 
-    dataset = SiameseFlickr30kDataset(root=root, split_root=split_root, split=split)
+    dataset = ImageCaptionFlickr30kDataset(root=root, split_root=split_root, split=split)
+    # Data loader
+    data_loader = torch.utils.data.DataLoader(dataset=dataset,
+                                              batch_size=batch_size,
+                                              shuffle=shuffle,
+                                              pin_memory=True,
+                                              num_workers=num_workers)
+
+    return data_loader
+
+
+def get_image_data_loader(root, split_root, split, batch_size=8, shuffle=False,
+                          num_workers=1):
+    """Returns torch.utils.data.DataLoader for custom coco dataset."""
+
+    dataset = ImageFlickr30kDataset(root=root, split_root=split_root, split=split)
+    # Data loader
+    data_loader = torch.utils.data.DataLoader(dataset=dataset,
+                                              batch_size=batch_size,
+                                              shuffle=shuffle,
+                                              pin_memory=True,
+                                              num_workers=num_workers)
+
+    return data_loader
+
+
+def get_captions_data_loader(root, split_root, split, batch_size=8, shuffle=False,
+                             num_workers=1):
+    """Returns torch.utils.data.DataLoader for custom coco dataset."""
+
+    dataset = CaptionFlickr30kDataset(root=root, split_root=split_root, split=split)
     # Data loader
     data_loader = torch.utils.data.DataLoader(dataset=dataset,
                                               batch_size=batch_size,

@@ -26,6 +26,7 @@ class StorageLink:
 class QuerySparseInvertedIndexer:
     def __init__(self, base_path: str, **kwargs):
         super().__init__(**kwargs)
+        self.inverted_index = defaultdict(list)
         self.inverted_index = StorageLink.load_from_file(base_path)
 
     def search(self, vector: 'scipy.sparse.csr_matrix', top_k: Optional[int], **kwargs):
@@ -38,6 +39,11 @@ class QuerySparseInvertedIndexer:
         else:
             return result
 
+    def analyze(self, **kwargs):
+        for key, bucket in self.inverted_index.items():
+            if len(bucket) > 0 and len(set(bucket)) > 0:
+                print(f' key {key} => len {len(bucket)}, {len(set(bucket))}')
+
 
 class AddSparseInvertedIndexer:
     def __init__(self, base_path: str, **kwargs):
@@ -46,12 +52,16 @@ class AddSparseInvertedIndexer:
         self.inverted_index = defaultdict(list)
 
     def add(self, indexes: List[str], vectors: 'scipy.sparse.csr_matrix', **kwargs):
-        for id, vec in zip(indexes, vectors):
+        for i, (id, vec) in enumerate(zip(indexes, vectors)):
             for index in vec.indices:
                 self.inverted_index[index].append(id)
 
     def save(self):
         StorageLink.store_to_file(self.base_path, self.inverted_index)
+
+    def analyze(self, **kwargs):
+        for key, bucket in self.inverted_index.items():
+            print(f' key {key} => len {len(bucket)}, {len(set(bucket))}')
 
     def __enter__(self):
         return self

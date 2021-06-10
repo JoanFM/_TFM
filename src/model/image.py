@@ -55,7 +55,7 @@ class ImageEncoder(nn.Module):
             dev = "cpu"
         device = torch.device(dev)
         if layer_size is None:
-            layer_size = [4096, 8192, 13926]
+            layer_size = [4096, 8192, 13439]
         self.feature_extractor = DenseVisualFeatureExtractor(**kwargs)
         modules = []
 
