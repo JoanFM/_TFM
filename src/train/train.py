@@ -13,7 +13,7 @@ import numpy as np
 
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-l1_regularization_weight = 1e-7
+l1_regularization_weight = 1e-6
 
 
 def evaluate_in_buckets_t2i(image_encoder, text_encoder, validation_indexers_path, batch_size, root, split_root, split):
@@ -129,7 +129,7 @@ def validation_loop(image_encoder, text_encoder, dataloader, device, loss_fn, tr
             image_embedding = image_encoder.forward(image)
             text_embedding = text_encoder.forward(caption)
             text_embedding = text_embedding.to(device)
-            l1_regularization = torch.mean(torch.sum(image_embedding, dim=1))
+            l1_regularization = torch.sum(torch.mean(image_embedding, dim=1))
             loss = loss_fn(image_embedding, text_embedding,
                            positive_tensor) + l1_regularization_weight * l1_regularization
             val_loss.append(loss.item())
@@ -184,7 +184,7 @@ def train(output_model_path: str = '/hdd/master/tfm/output_models',
                     image = image.to(device)
                     image_embedding = image_encoder.forward(image)
                     text_embedding = text_encoder.forward(caption).to(device)
-                    l1_regularization = torch.mean(torch.sum(image_embedding, dim=1))
+                    l1_regularization = torch.sum(torch.mean(image_embedding, dim=1))
                     loss = loss_fn(image_embedding, text_embedding,
                                    positive_tensor) + l1_regularization_weight * l1_regularization
                     train_loss.append(loss.item())
@@ -237,6 +237,17 @@ def evaluate_buckets_t2i(output_model_path: str = '/hdd/master/tfm/output_models
                                            split='test')
 
     print(f' buckets_eval {buckets_eval}')
+
+
+def analyze_vocab_learnt(vectorizer_path: str, inverted_index_base_path: str):
+    import pickle
+    with open(vectorizer_path, 'rb') as f:
+        vectorizer = pickle.load(f)
+    query_indexer = QuerySparseInvertedIndexer(base_path=inverted_index_base_path)
+    inverse_vocab = {v: k for k, v in vectorizer.vocabulary_.items()}
+    for b in query_indexer.inverted_index.keys():
+        if len(query_indexer.inverted_index[b]) > 0:
+            print(f' {inverse_vocab[b]}')
 
 
 if __name__ == '__main__':
