@@ -24,23 +24,24 @@ class TextEncoder:
 
 def get_model():
     # 4154 words appear at least 10 times in the full 30k dataset
-    train_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
-                                            split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
-                                            split='train')
+    # train_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
+    #                                         split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
+    #                                         split='train')
     test_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
                                            split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
                                            split='test')
-    val_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
-                                          split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
-                                          split='val')
+    # val_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
+    #                                       split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
+    #                                       split='val')
 
-    corpus = [train_dataset[i][1] for i in range(len(train_dataset))] + \
-             [test_dataset[i][1] for i in range(len(test_dataset))] + \
-             [val_dataset[i][1] for i in range(len(val_dataset))]
+    corpus = [test_dataset[i][1] for i in range(len(test_dataset))]
+    # corpus = [train_dataset[i][1] for i in range(len(train_dataset))] + \
+    #          [test_dataset[i][1] for i in range(len(test_dataset))] + \
+    #          [val_dataset[i][1] for i in range(len(val_dataset))]
 
     vectorizer = CountVectorizer(tokenizer=spacy_tokenizer, stop_words='english')
     vectorizer.fit(corpus)
-    with open('vectorizer_tokenizer_stop_words.pkl', 'wb') as f:
+    with open('vectorizer_tokenizer_stop_words-test.pkl', 'wb') as f:
         pickle.dump(vectorizer, f)
 
 

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-import numpy as np
+import torch.nn.functional as F
 
 
 class DenseVisualFeatureExtractor:
@@ -55,7 +55,8 @@ class ImageEncoder(nn.Module):
             dev = "cpu"
         device = torch.device(dev)
         if layer_size is None:
-            layer_size = [4096, 8192, 13439]
+            # layer_size = [4096, 8192, 13439]
+            layer_size = [4096, 3003]
         self.feature_extractor = DenseVisualFeatureExtractor(**kwargs)
         modules = []
 
@@ -64,10 +65,11 @@ class ImageEncoder(nn.Module):
             modules.append(nn.Linear(in_features=previous_layer, out_features=layer))
             modules.append(nn.ReLU(inplace=True))
             previous_layer = layer
+        #modules.append(nn.Sigmoid())
         self.sparse_encoder = nn.Sequential(*modules)
         self.sparse_encoder.to(device)
 
     def forward(self, x):
         x = self.feature_extractor.encode(x)
         x = x.view(x.size()[0], -1)
-        return self.sparse_encoder(x)
+        return F.normalize(self.sparse_encoder(x), p=2, dim=1)

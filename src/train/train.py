@@ -13,7 +13,7 @@ import numpy as np
 
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-l1_regularization_weight = 1e-6
+l1_regularization_weight = 1e-7
 
 
 def evaluate_in_buckets_t2i(image_encoder, text_encoder, validation_indexers_path, batch_size, root, split_root, split):
@@ -37,25 +37,30 @@ def evaluate_in_buckets_t2i(image_encoder, text_encoder, validation_indexers_pat
         total_found = 0
         total_query_cardinality = 0
         num_of_queries_where_expected_result_would_be_candidate = 0
-        indexer = QuerySparseInvertedIndexer(
-            base_path=validation_indexers_path)
-        for batch_id, (filenames, captions) in enumerate(text_data_loader):
-            text_embedding_query = csr_matrix(text_encoder.forward(captions).detach().numpy())
-            for i in range(text_embedding_query.shape[0]):
-                query_cardinality = text_embedding_query.getrow(i).getnnz()
-                results = indexer.search(text_embedding_query.getrow(i), None)
-                number_of_buckets_found = 0
-                for result in results:
-                    if result == filenames[i]:
-                        number_of_buckets_found += 1
+        with AddSparseInvertedIndexer(base_path=f'{validation_indexers_path}-text') as text_indexer:
+            query_indexer = QuerySparseInvertedIndexer(
+                base_path=validation_indexers_path)
+            for batch_id, (filenames, captions) in enumerate(text_data_loader):
+                text_embedding_query = csr_matrix(text_encoder.forward(captions).detach().numpy())
+                text_indexer.add(filenames, text_embedding_query)
+                for i in range(text_embedding_query.shape[0]):
+                    query_cardinality = text_embedding_query.getrow(i).getnnz()
+                    results = query_indexer.search(text_embedding_query.getrow(i), None)
+                    number_of_buckets_found = 0
+                    for result in results:
+                        if result == filenames[i]:
+                            number_of_buckets_found += 1
 
-                if number_of_buckets_found > 1:
-                    num_of_queries_where_expected_result_would_be_candidate += 1
+                    if number_of_buckets_found > 1:
+                        num_of_queries_where_expected_result_would_be_candidate += 1
 
-                total_found += number_of_buckets_found
-                total_query_cardinality += query_cardinality
-            querying_bar.next()
-        indexer.analyze()
+                    total_found += number_of_buckets_found
+                    total_query_cardinality += query_cardinality
+                querying_bar.next()
+            print(f' Analyze Query Indexer')
+            query_indexer.analyze()
+        print(f' Analyze Add Text Indexer')
+        text_indexer.analyze()
         print(f'On average, the image has fallen in {(total_found / total_query_cardinality) * 100}% of the '
               f'expected text buckets')
         print(
@@ -138,11 +143,11 @@ def validation_loop(image_encoder, text_encoder, dataloader, device, loss_fn, tr
     return val_loss
 
 
-def train(output_model_path: str = '/hdd/master/tfm/output_models',
-          vectorizer_path: str = '/hdd/master/tfm/vectorizer.pkl',
-          validation_indexers_base_path: str = '/hdd/master/tfm/sparse_indexers_tmp',
-          num_epochs: int = 3,
-          batch_size: int = 16):
+def train(output_model_path: str = '/hdd/master/tfm/output_models-test',
+          vectorizer_path: str = '/hdd/master/tfm/vectorizer_tokenizer_stop_words-test.pkl',
+          validation_indexers_base_path: str = '/hdd/master/tfm/sparse_indexers_tmp-test',
+          num_epochs: int = 20,
+          batch_size: int = 8):
     if torch.cuda.is_available():
         dev = "cuda:0"
     else:
@@ -152,7 +157,7 @@ def train(output_model_path: str = '/hdd/master/tfm/output_models',
     os.makedirs(output_model_path, exist_ok=True)
     image_encoder = ImageEncoder()
     text_encoder = TextEncoder(vectorizer_path)
-    optimizer = torch.optim.Adam(image_encoder.parameters(), lr=0.02)
+    optimizer = torch.optim.Adam(image_encoder.parameters(), lr=0.05)
     optimizer.zero_grad()
     loss_fn = torch.nn.CosineEmbeddingLoss(margin=0)
 
@@ -161,7 +166,7 @@ def train(output_model_path: str = '/hdd/master/tfm/output_models',
         for epoch in range(num_epochs):
             train_data_loader = get_data_loader(root='/hdd/master/tfm/flickr30k_images',
                                                 split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
-                                                split='train',
+                                                split='test',
                                                 shuffle=True,
                                                 batch_size=batch_size)
 
@@ -184,9 +189,13 @@ def train(output_model_path: str = '/hdd/master/tfm/output_models',
                     image = image.to(device)
                     image_embedding = image_encoder.forward(image)
                     text_embedding = text_encoder.forward(caption).to(device)
-                    l1_regularization = torch.sum(torch.mean(image_embedding, dim=1))
+                    # print(f' {csr_matrix(image_embedding.detach().numpy()).getnnz()}')
+                    # print(f' {csr_matrix(image_embedding.detach().numpy()).data}')
+                    # l1_regularization = torch.sum(torch.mean(image_embedding, dim=1))
+                    # loss = loss_fn(image_embedding, text_embedding,
+                    #                positive_tensor) + l1_regularization_weight * l1_regularization
                     loss = loss_fn(image_embedding, text_embedding,
-                                   positive_tensor) + l1_regularization_weight * l1_regularization
+                                   positive_tensor)
                     train_loss.append(loss.item())
                     loss.backward()
                     optimizer.step()
@@ -228,7 +237,7 @@ def evaluate_buckets_t2i(output_model_path: str = '/hdd/master/tfm/output_models
                          batch_size: int = 16):
     image_encoder = ImageEncoder()
     text_encoder = TextEncoder(vectorizer_path)
-    image_encoder.load_state_dict(torch.load(os.path.join(output_model_path, 'model-inter-1-final.pt')))
+    image_encoder.load_state_dict(torch.load(os.path.join(output_model_path, 'model-inter-2-final.pt')))
 
     buckets_eval = evaluate_in_buckets_t2i(image_encoder, text_encoder,
                                            os.path.join(validation_indexers_base_path, f'eval-test'),

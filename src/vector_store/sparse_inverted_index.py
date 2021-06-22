@@ -40,9 +40,12 @@ class QuerySparseInvertedIndexer:
             return result
 
     def analyze(self, **kwargs):
+        count = 0
         for key, bucket in self.inverted_index.items():
             if len(bucket) > 0 and len(set(bucket)) > 0:
+                count += 1
                 print(f' key {key} => len {len(bucket)}, {len(set(bucket))}')
+        print(f' COUNT => {count}')
 
 
 class AddSparseInvertedIndexer:
@@ -60,8 +63,11 @@ class AddSparseInvertedIndexer:
         StorageLink.store_to_file(self.base_path, self.inverted_index)
 
     def analyze(self, **kwargs):
+        count = 0
         for key, bucket in self.inverted_index.items():
+            count += 1
             print(f' key {key} => len {len(bucket)}, {len(set(bucket))}')
+        print(f' COUNT => {count}')
 
     def __enter__(self):
         return self
