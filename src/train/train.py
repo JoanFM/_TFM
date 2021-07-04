@@ -144,9 +144,9 @@ def validation_loop(image_encoder, text_encoder, dataloader, device, loss_fn, tr
 
 
 def train(output_model_path: str = '/hdd/master/tfm/output_models-test',
-          vectorizer_path: str = '/hdd/master/tfm/vectorizer_tokenizer_stop_words-test.pkl',
+          vectorizer_path: str = '/hdd/master/tfm/vectorizer_tokenizer_stop_words_analyze_filtered.pkl',
           validation_indexers_base_path: str = '/hdd/master/tfm/sparse_indexers_tmp-test',
-          num_epochs: int = 20,
+          num_epochs: int = 50,
           batch_size: int = 8):
     if torch.cuda.is_available():
         dev = "cuda:0"
@@ -166,13 +166,13 @@ def train(output_model_path: str = '/hdd/master/tfm/output_models-test',
         for epoch in range(num_epochs):
             train_data_loader = get_data_loader(root='/hdd/master/tfm/flickr30k_images',
                                                 split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
-                                                split='test',
+                                                split='filter_small',
                                                 shuffle=True,
                                                 batch_size=batch_size)
 
             val_data_loader = get_data_loader(root='/hdd/master/tfm/flickr30k_images',
                                               split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
-                                              split='val',
+                                              split='filter_small',
                                               shuffle=True,
                                               batch_size=batch_size)
 
@@ -225,7 +225,7 @@ def train(output_model_path: str = '/hdd/master/tfm/output_models-test',
                                                    os.path.join(validation_indexers_base_path, f'epoch-{epoch}'),
                                                    batch_size, root='/hdd/master/tfm/flickr30k_images',
                                                    split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
-                                                   split='test')
+                                                   split='filter_small')
             print('#' * 70)
             print(f'Buckets eval at the end of epoch {epoch}/{num_epochs}: ', buckets_eval)
             epoch_bar.next()
@@ -247,28 +247,6 @@ def evaluate_buckets_t2i(output_model_path: str = '/hdd/master/tfm/output_models
 
     print(f' buckets_eval {buckets_eval}')
 
-
-def get_vectorizer():
-    # 4154 words appear at least 10 times in the full 30k dataset
-    # train_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
-    #                                         split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
-    #                                         split='train')
-    test_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
-                                           split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
-                                           split='test')
-    # val_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
-    #                                       split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
-    #                                       split='val')
-
-    corpus = [test_dataset[i][1] for i in range(len(test_dataset))]
-    # corpus = [train_dataset[i][1] for i in range(len(train_dataset))] + \
-    #          [test_dataset[i][1] for i in range(len(test_dataset))] + \
-    #          [val_dataset[i][1] for i in range(len(val_dataset))]
-
-    vectorizer = CountVectorizer(tokenizer=spacy_tokenizer, stop_words='english')
-    vectorizer.fit(corpus)
-    with open('vectorizer_tokenizer_stop_words-test.pkl', 'wb') as f:
-        pickle.dump(vectorizer, f)
 
 if __name__ == '__main__':
     train()

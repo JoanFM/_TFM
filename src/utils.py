@@ -9,6 +9,8 @@ from src.model import TextEncoder
 from src.dataset import get_captions_data_loader
 from src.vector_store.sparse_inverted_index import AddSparseInvertedIndexer, QuerySparseInvertedIndexer
 from scipy.sparse import csr_matrix
+from progress.bar import Bar
+
 
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -96,7 +98,7 @@ def get_model():
         pickle.dump(vectorizer, f)
 
 
-def filter_vectorizer(vectorizer_path: str,indexer_path='/hdd/master/tfm/sparse_indexers_tmp_text_analyze'):
+def filter_vectorizer(vectorizer_path: str, indexer_path='/hdd/master/tfm/sparse_indexers_tmp_text_analyze'):
     """
      3638 words appear more than 10 times in the vocabulary
      1583 words appear more than 50 times in the vocabulary
@@ -125,8 +127,43 @@ def filter_vectorizer(vectorizer_path: str,indexer_path='/hdd/master/tfm/sparse_
         pickle.dump(filtered_vectorizer, f)
 
 
+def create_filtered_dataset(vectorizer_path: str = '/hdd/master/tfm/vectorizer_tokenizer_stop_words_analyze_filtered.pkl'):
+    train_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
+                                            split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
+                                            split='train')
+    test_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
+                                           split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
+                                           split='test')
+    val_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
+                                          split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
+                                          split='val')
+
+    corpus = [train_dataset[i] for i in range(len(train_dataset))] + \
+             [test_dataset[i] for i in range(len(test_dataset))] + \
+             [val_dataset[i] for i in range(len(val_dataset))]
+
+    text_encoder = TextEncoder(vectorizer_path)
+
+    with Bar(f'Element in corpus', max=len(corpus)) as bar:
+        filenames = set()
+        for filename, caption in corpus:
+            tag = filename.split('.jpg')[0]
+            text_embedding = text_encoder.forward([caption])
+            if csr_matrix(text_embedding.detach().numpy()).getnnz() > 0:
+                if tag not in filenames:
+                    filenames.add(tag)
+            bar.next()
+    print(f' Number of elements in the filtered dataset {len(filenames)}')
+
+    with Bar(f'Writing in filter.txt split', max=len(filenames)) as bar:
+        with open('/hdd/master/tfm/flickr30k_images/flickr30k_entities/filter.txt', 'w') as f:
+            for tag in filenames:
+                f.write(tag)
+                f.write('\n')
+
+
 if __name__ == '__main__':
-    #get_model()
-    #build_inverted_index_text()
-    #analyze_word_frequencies()
-    filter_vectorizer(vectorizer_path='/hdd/master/tfm/vectorizer_tokenizer_stop_words_analyze.pkl')
+    # get_model()
+    # build_inverted_index_text()
+    # analyze_word_frequencies()
+    create_filtered_dataset(vectorizer_path='/hdd/master/tfm/vectorizer_tokenizer_stop_words_analyze_filtered.pkl')
