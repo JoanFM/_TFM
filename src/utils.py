@@ -57,7 +57,7 @@ def analyze_word_frequencies(indexer_path='/hdd/master/tfm/sparse_indexers_tmp_t
      294 words appear more than 500 times in the vocabulary
     """
     v = QuerySparseInvertedIndexer(indexer_path)
-    for threshold in [10, 50, 100, 200, 500]:
+    for threshold in [10, 50, 100, 200, 500, 1000, 2000, 2500, 3000, 3500, 4000]:
         num = 0
         for k in v.inverted_index.keys():
             if len(v.inverted_index[k]) > threshold:
@@ -76,8 +76,7 @@ def analyze_vocab_learnt(vectorizer_path: str, inverted_index_base_path: str):
             print(f' {inverse_vocab[b]}')
 
 
-def get_model():
-    # 4154 words appear at least 10 times in the full 30k dataset
+def get_model(vectorizer_path='/hdd/master/tfm/vectorizer_tokenizer_stop_words_analyze.pkl'):
     train_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
                                             split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
                                             split='train')
@@ -94,11 +93,11 @@ def get_model():
 
     vectorizer = CountVectorizer(tokenizer=spacy_tokenizer, stop_words='english')
     vectorizer.fit(corpus)
-    with open('/hdd/master/tfm/vectorizer_tokenizer_stop_words_analyze.pkl', 'wb') as f:
+    with open(vectorizer_path, 'wb') as f:
         pickle.dump(vectorizer, f)
 
 
-def filter_vectorizer(vectorizer_path: str, indexer_path='/hdd/master/tfm/sparse_indexers_tmp_text_analyze'):
+def filter_vectorizers(vectorizer_path: str, indexer_path='/hdd/master/tfm/sparse_indexers_tmp_text_analyze'):
     """
      3638 words appear more than 10 times in the vocabulary
      1583 words appear more than 50 times in the vocabulary
@@ -110,24 +109,24 @@ def filter_vectorizer(vectorizer_path: str, indexer_path='/hdd/master/tfm/sparse
     with open(vectorizer_path, 'rb') as f:
         vectorizer = pickle.load(f)
     v = QuerySparseInvertedIndexer(indexer_path)
-    threshold = 100
-    num = 0
-    keys_to_keep_in_vocab = []
-    for k in v.inverted_index.keys():
-        if len(v.inverted_index[k]) > threshold:
-            num += 1
-            keys_to_keep_in_vocab.append(k)
-    print(f' {num} words appear more than {threshold} times in the vocabulary')
-    inverted_vocab = {v: k for k, v in vectorizer.vocabulary_.items()}
-    words_to_keep = [inverted_vocab[key] for key in keys_to_keep_in_vocab]
-    filtered_vectorizer = CountVectorizer(tokenizer=spacy_tokenizer, stop_words='english')
-    filtered_vectorizer.fit(words_to_keep)
-    path = vectorizer_path.split('.pkl')[0]
-    with open(f'{path}_filtered.pkl', 'wb') as f:
-        pickle.dump(filtered_vectorizer, f)
+    for threshold in [10, 50, 100, 200, 500, 1000, 2000, 2500, 3000, 3500, 4000]:
+        num = 0
+        keys_to_keep_in_vocab = []
+        for k in v.inverted_index.keys():
+            if len(v.inverted_index[k]) > threshold:
+                num += 1
+                keys_to_keep_in_vocab.append(k)
+        print(f' {num} words appear more than {threshold} times in the vocabulary')
+        inverted_vocab = {v: k for k, v in vectorizer.vocabulary_.items()}
+        words_to_keep = [inverted_vocab[key] for key in keys_to_keep_in_vocab]
+        filtered_vectorizer = CountVectorizer(tokenizer=spacy_tokenizer, stop_words='english')
+        filtered_vectorizer.fit(words_to_keep)
+        path = vectorizer_path.split('.pkl')[0]
+        with open(f'{path}_filtered_{threshold}.pkl', 'wb') as f:
+            pickle.dump(filtered_vectorizer, f)
 
 
-def create_filtered_dataset(vectorizer_path: str = '/hdd/master/tfm/vectorizer_tokenizer_stop_words_analyze_filtered.pkl'):
+def create_filtered_datasets(vectorizer_path: str = '/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words.pkl'):
     train_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
                                             split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
                                             split='train')
@@ -142,28 +141,31 @@ def create_filtered_dataset(vectorizer_path: str = '/hdd/master/tfm/vectorizer_t
              [test_dataset[i] for i in range(len(test_dataset))] + \
              [val_dataset[i] for i in range(len(val_dataset))]
 
-    text_encoder = TextEncoder(vectorizer_path)
+    for threshold in [10, 50, 100, 200, 500, 1000, 2000, 2500, 3000]:
+        vectorizer_path_threshold = f'{vectorizer_path.split(".pkl")[0]}_filtered_{threshold}.pkl'
+        text_encoder = TextEncoder(vectorizer_path_threshold)
 
-    with Bar(f'Element in corpus', max=len(corpus)) as bar:
-        filenames = set()
-        for filename, caption in corpus:
-            tag = filename.split('.jpg')[0]
-            text_embedding = text_encoder.forward([caption])
-            if csr_matrix(text_embedding.detach().numpy()).getnnz() > 0:
-                if tag not in filenames:
-                    filenames.add(tag)
-            bar.next()
-    print(f' Number of elements in the filtered dataset {len(filenames)}')
+        with Bar(f'Element in corpus', max=len(corpus)) as bar:
+            filenames = set()
+            for filename, caption in corpus:
+                tag = filename.split('.jpg')[0]
+                text_embedding = text_encoder.forward([caption])
+                if csr_matrix(text_embedding.detach().numpy()).getnnz() > 0:
+                    if tag not in filenames:
+                        filenames.add(tag)
+                bar.next()
+        print(f' Number of elements in the filtered dataset for threshold {threshold} ==> {len(filenames)}')
 
-    with Bar(f'Writing in filter.txt split', max=len(filenames)) as bar:
-        with open('/hdd/master/tfm/flickr30k_images/flickr30k_entities/filter.txt', 'w') as f:
-            for tag in filenames:
-                f.write(tag)
-                f.write('\n')
+        with Bar(f'Writing in filter_{threshold} split', max=len(filenames)) as bar:
+            with open(f'/hdd/master/tfm/flickr30k_images/flickr30k_entities/filter_{threshold}.txt', 'w') as f:
+                for tag in filenames:
+                    f.write(tag)
+                    f.write('\n')
 
 
 if __name__ == '__main__':
-    # get_model()
-    # build_inverted_index_text()
-    # analyze_word_frequencies()
-    create_filtered_dataset(vectorizer_path='/hdd/master/tfm/vectorizer_tokenizer_stop_words_analyze_filtered.pkl')
+    get_model(vectorizer_path='/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words.pkl')
+    build_inverted_index_text(vectorizer_path='/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words.pkl')
+    analyze_word_frequencies()
+    filter_vectorizers(vectorizer_path='/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words.pkl')
+    create_filtered_datasets(vectorizer_path='/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words.pkl')

@@ -1,13 +1,12 @@
 import torch
+import numpy as np
 import torch.nn as nn
-
-import torch.nn.functional as F
 
 
 class DenseVisualFeatureExtractor:
 
     def __init__(self,
-                 backbone_model: str = 'resnet101',
+                 backbone_model: str = 'resnet18',
                  ):
         super().__init__()
         import torchvision.models as models
@@ -25,7 +24,9 @@ class DenseVisualFeatureExtractor:
 
     @property
     def output_dim(self):
-        return 2048
+        random_image_array = np.random.random((8, 3, 224, 224))
+        content = torch.Tensor(random_image_array)
+        return self.encode(content).shape[1]
 
     def _get_features(self, content):
         feature_map = None
@@ -41,8 +42,7 @@ class DenseVisualFeatureExtractor:
         return feature_map
 
     def encode(self, content, *args, **kwargs):
-        _feature = self._get_features(content)
-        return _feature
+        return self._get_features(content)
 
 
 class ImageEncoder(nn.Module):
@@ -55,21 +55,29 @@ class ImageEncoder(nn.Module):
             dev = "cpu"
         device = torch.device(dev)
         if layer_size is None:
-            # layer_size = [4096, 8192, 13439]
             layer_size = [4096, 1062]
         self.feature_extractor = DenseVisualFeatureExtractor(**kwargs)
         modules = []
 
         previous_layer = self.feature_extractor.output_dim
-        for layer in layer_size:
+        for i, layer in enumerate(layer_size):
             modules.append(nn.Linear(in_features=previous_layer, out_features=layer))
             modules.append(nn.ReLU(inplace=True))
             previous_layer = layer
+        #
+        modules.pop()
         #modules.append(nn.Sigmoid())
         self.sparse_encoder = nn.Sequential(*modules)
+        print(f' sparse encoder {self.sparse_encoder}')
         self.sparse_encoder.to(device)
+        self.extra_relu = nn.ReLU(inplace=True)
+        self.extra_relu.to(device)
 
     def forward(self, x):
         x = self.feature_extractor.encode(x)
         x = x.view(x.size()[0], -1)
-        return F.normalize(self.sparse_encoder(x), p=2, dim=1)
+        result = self.sparse_encoder(x)
+        if self.training:
+            return result
+        else:
+            return self.extra_relu(result)

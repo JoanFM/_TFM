@@ -78,16 +78,16 @@ class ImageCaptionFlickr30kDataset(Flickr30kDataset):
     """
 
     def __getitem__(self, index):
-        image_id_index = int(index / 5)
-        caption_id = int(index % 5)
+        image_id_index = int(index)
         filename = f'{self.ids[image_id_index]}.jpg'
         group_df = self.groups.get_group(filename)
         captions = group_df[' comment'].to_list()
+        captions_concat = ' '.join(captions)
         positive_img = self._get_image(image_id_index)
-        return filename, positive_img, captions[caption_id]
+        return filename, positive_img, captions_concat
 
     def __len__(self):
-        return self.captions_length
+        return self.images_length
 
 
 def get_data_loader(root, split_root, split, batch_size=8, shuffle=False,
