@@ -1,31 +1,8 @@
-import os
 from src.vector_store.sparse_inverted_index import QuerySparseInvertedIndexer
 from src.model import TextEncoder
 from scipy.sparse import csr_matrix
 
 IMAGE_BASE_PATH = f'/hdd/master/tfm/flickr30k_images/flickr30k_images'
-
-
-# def display(results):
-#     from tkinter import Tk, Label
-#     from PIL import Image, ImageTk
-#
-#     root = Tk()
-#     #root.geometry("800x600")
-#     photos = []
-#
-#     def displayImg(img):
-#
-#         image = Image.open(img)
-#         photo = ImageTk.PhotoImage(image)
-#         photos.append(photo)  # keep references!
-#         newPhoto_label = Label(image=photo)
-#         newPhoto_label.pack()
-#
-#     for file in results[: 4]:
-#         print(f' file {file}')
-#         displayImg(open(f'{IMAGE_BASE_PATH}/{file}', mode='rb'))
-#     root.mainloop()
 
 
 def display(results):
@@ -38,7 +15,7 @@ def display(results):
     for i, (score, file) in enumerate(results):
         img = Image.open(open(f'{IMAGE_BASE_PATH}/{file}', 'rb'))
         sublot = fig.add_subplot(rows, columns, i + 1)
-        sublot.title.set_text(f'Relevance {score}')
+        sublot.title.set_text(f'{file} - {score}')
         plt.imshow(img)
     plt.show()
 

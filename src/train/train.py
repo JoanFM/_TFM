@@ -9,6 +9,7 @@ from src.model import ImageEncoder
 from src.model import TextEncoder
 from src.dataset import get_data_loader, get_image_data_loader
 from src.vector_store.sparse_inverted_index import AddSparseInvertedIndexer, QuerySparseInvertedIndexer
+from src.evaluate import evaluate
 from scipy.sparse import csr_matrix
 import numpy as np
 
@@ -39,6 +40,8 @@ def evaluate_in_buckets_t2i(image_encoder, text_encoder, validation_indexers_pat
         total_found = 0
         total_query_cardinality = 0
         num_of_queries_where_expected_result_would_be_candidate = 0
+        retrieved_image_filenames = [] # it should be a list of lists
+        groundtruth_expected_image_filenames = [] # it should be a list of lists
         with AddSparseInvertedIndexer(base_path=f'{validation_indexers_path}-text') as text_indexer:
             query_indexer = QuerySparseInvertedIndexer(
                 base_path=validation_indexers_path)
@@ -46,30 +49,34 @@ def evaluate_in_buckets_t2i(image_encoder, text_encoder, validation_indexers_pat
                 text_embedding_query = csr_matrix(text_encoder.forward(captions).detach().numpy())
                 text_indexer.add(filenames, text_embedding_query)
                 for i in range(text_embedding_query.shape[0]):
-                    query_cardinality = text_embedding_query.getrow(i).getnnz()
+                    #query_cardinality = text_embedding_query.getrow(i).getnnz()
                     results = query_indexer.search(text_embedding_query.getrow(i), None)
-                    number_of_buckets_found = 0
-                    for result in results:
-                        if result == filenames[i]:
-                            number_of_buckets_found += 1
+                    retrieved_image_filenames.append(results)
+                    groundtruth_expected_image_filenames.append([filenames[i]])
 
-                    if number_of_buckets_found > 1:
-                        num_of_queries_where_expected_result_would_be_candidate += 1
-
-                    total_found += number_of_buckets_found
-                    total_query_cardinality += query_cardinality
+                    # number_of_buckets_found = 0
+                    # for result in results:
+                    #     print(f' result {result} vs filenames[i] {filenames[i]}')
+                    #     if result == filenames[i]:
+                    #         number_of_buckets_found += 1
+                    #
+                    # if number_of_buckets_found > 1:
+                    #     num_of_queries_where_expected_result_would_be_candidate += 1
+                    #
+                    # total_found += number_of_buckets_found
+                    # total_query_cardinality += query_cardinality
                 querying_bar.next()
             print(f' Analyze Query Indexer')
             query_indexer.analyze()
         print(f' Analyze Add Text Indexer')
         text_indexer.analyze()
-        print(f'On average, the image has fallen in {(total_found / total_query_cardinality) * 100}% of the '
-              f'expected text buckets')
-        print(
-            f'On average, the image would be an overall candidate (TOP_K NONE) {(num_of_queries_where_expected_result_would_be_candidate / len(text_data_loader.dataset)) * 100}% of the '
-            f'queries')
 
-    return total_found / total_query_cardinality
+        return evaluate(['recall', 'reciprocal_rank'], retrieved_image_filenames, groundtruth_expected_image_filenames, None)
+        # print(f'On average, the image has fallen in {(total_found / total_query_cardinality) * 100}% of the '
+        #       f'expected text buckets')
+        # print(
+        #     f'On average, the image would be an overall candidate (TOP_K NONE) {(num_of_queries_where_expected_result_would_be_candidate / len(text_data_loader.dataset)) * 100}% of the '
+        #     f'queries')
 
 
 def evaluate_t2i(image_encoder, text_encoder, dataloader, validation_indexers_path):
@@ -258,14 +265,14 @@ def train(output_model_path: str = '/hdd/master/tfm/output_models-test',
             with open(f'train_loss-{epoch}', 'wb') as f:
                 pickle.dump(train_loss, f)
 
-            if epoch % 10 == 0 and epoch != 0:
-                buckets_eval = evaluate_in_buckets_t2i(image_encoder, text_encoder,
-                                                       os.path.join(validation_indexers_base_path, f'epoch-{epoch}'),
-                                                       batch_size, root='/hdd/master/tfm/flickr30k_images',
-                                                       split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
-                                                       split='filter_small')
-                print('#' * 70)
-                print(f'Buckets eval at the end of epoch {epoch}/{num_epochs}: ', buckets_eval)
+            #if epoch % 10 == 0 and epoch != 0:
+            buckets_eval = evaluate_in_buckets_t2i(image_encoder, text_encoder,
+                                                   os.path.join(validation_indexers_base_path, f'epoch-{epoch}'),
+                                                   batch_size, root='/hdd/master/tfm/flickr30k_images',
+                                                   split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
+                                                   split='filter_small')
+            print('#' * 70)
+            print(f'Buckets eval at the end of epoch {epoch}/{num_epochs}: ', buckets_eval)
             epoch_bar.next()
 
 
