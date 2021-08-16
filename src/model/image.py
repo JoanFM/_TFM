@@ -6,7 +6,7 @@ import torch.nn as nn
 class DenseVisualFeatureExtractor:
 
     def __init__(self,
-                 backbone_model: str = 'resnet18',
+                 backbone_model: str = 'resnet50',
                  ):
         super().__init__()
         import torchvision.models as models

@@ -21,7 +21,8 @@ def display(results):
 
 
 def load_index_and_model(inverted_index_path: str = '/hdd/master/tfm/sparse_indexers_tmp-test/epoch-90',
-                         vectorizer_path: str = '/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words_filtered_3000.pkl', ):
+                         vectorizer_path: str = '/hdd/master/tfm'
+                                                '/vectorizer_tokenizer_stop_words_all_words_filtered_3000.pkl', ):
     query_indexer = QuerySparseInvertedIndexer(
         base_path=inverted_index_path)
     model = TextEncoder(vectorizer_path)

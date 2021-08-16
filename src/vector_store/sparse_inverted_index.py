@@ -94,6 +94,7 @@ class StorageLink:
 class QuerySparseInvertedIndexer:
     def __init__(self, base_path: str, **kwargs):
         super().__init__(**kwargs)
+        self.base_path = base_path
         self.inverted_index = InvertedIndex()
         self.inverted_index = StorageLink.load_from_file(base_path)
 
@@ -102,11 +103,21 @@ class QuerySparseInvertedIndexer:
 
     def analyze(self, **kwargs):
         count = 0
+        counts = []
+        counts_ignoring_0_sized = []
         for key, bucket in self.inverted_index.inverted_index.items():
+            counts.append(len(set(bucket)))
             if len(bucket) > 0 and len(set(bucket)) > 0:
+                counts_ignoring_0_sized.append(len(set(bucket)))
                 count += 1
-                print(f' key {key} => len {len(bucket)}, {len(set(bucket))}')
-        print(f' COUNT => {count}')
+        print(f' Analysis for {self.base_path}, query')
+        print(f' Size of vocabulary => {len(self.inverted_index.inverted_index.keys())}')
+        print(f' Number of keys with at least one candidate => {count}')
+        shape_1 = list(self.inverted_index.document_sparse_vectors.values())[0].shape[1]
+        print(f' Shape of sparse vector => {shape_1}')
+        print(f' Number of empty bins => {shape_1 - count}')
+        print(f' Average amount of documents per bucket, ignoring 0-sized buckets => mean: {np.mean(counts_ignoring_0_sized)}, std: {np.std(counts_ignoring_0_sized)}')
+        print(f' Average amount of documents per bucket, counting 0-sized buckets => mean: {np.mean(counts)}, std: {np.std(counts)}')
 
 
 class AddSparseInvertedIndexer:
@@ -114,9 +125,12 @@ class AddSparseInvertedIndexer:
         super().__init__(**kwargs)
         self.base_path = base_path
         self.inverted_index = InvertedIndex()
+        self._s = set()
 
     def add(self, indexes: List[str], vectors: 'scipy.sparse.csr_matrix', **kwargs):
         for i, (document_id, vec) in enumerate(zip(indexes, vectors)):
+            for j in vec.indices:
+                self._s.add(j)
             self.inverted_index.add(document_id, vec)
 
     def save(self):
@@ -124,14 +138,26 @@ class AddSparseInvertedIndexer:
 
     def analyze(self, **kwargs):
         count = 0
+        counts = []
+        counts_ignoring_0_sized = []
         for key, bucket in self.inverted_index.inverted_index.items():
-            count += 1
-            print(f' key {key} => len {len(bucket)}, {len(set(bucket))}')
-        print(f' COUNT => {count}')
+            counts.append(len(set(bucket)))
+            if len(bucket) > 0 and len(set(bucket)) > 0:
+                counts_ignoring_0_sized.append(len(set(bucket)))
+                count += 1
+        print(f' Analysis for {self.base_path}, query')
+        print(f' Size of vocabulary => {len(self.inverted_index.inverted_index.keys())}')
+        print(f' Number of keys with at least one candidate => {count}')
+        shape_1 = list(self.inverted_index.document_sparse_vectors.values())[0].shape[1]
+        print(f' Shape of sparse vector => {shape_1}')
+        print(f' Number of empty bins => {shape_1 - count}')
+        print(f' Average amount of documents per bucket, ignoring 0-sized buckets => mean: {np.mean(counts_ignoring_0_sized)}, std: {np.std(counts_ignoring_0_sized)}')
+        print(f' Average amount of documents per bucket, counting 0-sized buckets => mean: {np.mean(counts)}, std: {np.std(counts)}')
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        print(f' length of set {len(self._s)}')
         self.inverted_index.cache_idfs()
         self.save()

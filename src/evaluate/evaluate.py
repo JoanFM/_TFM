@@ -33,19 +33,29 @@ def reciprocal_rank(
         return 0.0
 
 
-def evaluate(metrics, retrieved_image_filenames: List[List[str]], groundtruth_expected_image_filenames: List[List[str]], eval_at):
+def evaluate(metrics: List[str],
+             retrieved_image_filenames: List[List[str]],
+             groundtruth_expected_image_filenames: List[List[str]],
+             top_ks: List[Optional[int]]):
     ret = {}
     for metric in metrics:
+        if metric == 'num_candidates':
+            mean_num_candidates = 0
+            for actual in retrieved_image_filenames:
+                mean_num_candidates += len(actual)
+            ret[f'num_candidates'] = mean_num_candidates/len(retrieved_image_filenames)
+            print(f' Mean num_candidates {mean_num_candidates/len(retrieved_image_filenames)}')
         if metric == 'recall':
-            mean_recall = 0
-            for actual, desired in zip(retrieved_image_filenames, groundtruth_expected_image_filenames):
-                mean_recall += recall(actual, desired, eval_at)
-            ret['recall'] = mean_recall/len(groundtruth_expected_image_filenames)
-            print(f' Mean Recall {mean_recall/len(groundtruth_expected_image_filenames)}')
+            for eval_at in top_ks:
+                mean_recall = 0
+                for actual, desired in zip(retrieved_image_filenames, groundtruth_expected_image_filenames):
+                    mean_recall += recall(actual, desired, eval_at)
+                ret[f'recall@{eval_at}'] = mean_recall/len(groundtruth_expected_image_filenames)
+                print(f' Mean Recall@{eval_at} {mean_recall/len(groundtruth_expected_image_filenames)}')
         if metric == 'reciprocal_rank':
             mean_reciprocal_rank = 0
             for actual, desired in zip(retrieved_image_filenames, groundtruth_expected_image_filenames):
-                mean_reciprocal_rank += reciprocal_rank(actual, desired, eval_at)
+                mean_reciprocal_rank += reciprocal_rank(actual, desired)
             print(f' Mean Reciprocal rank {mean_reciprocal_rank/len(groundtruth_expected_image_filenames)}')
             ret['reciprocal_rank'] = mean_reciprocal_rank/len(groundtruth_expected_image_filenames)
     return ret
