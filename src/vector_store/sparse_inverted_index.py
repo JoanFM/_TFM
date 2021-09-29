@@ -60,12 +60,12 @@ class InvertedIndex:
         candidate_vector = self.document_sparse_vectors[candidate]
         candidate_dense = np.array(candidate_vector.todense())[0]
         number_words = len(candidate_vector.indices)
-        prod = 1
+        sum = 0
         for term_index in query_vec.indices:
             tf = self._tf(candidate_dense, term_index, number_words)
             idf = self._idf(term_index)
-            prod = prod * tf * idf
-        return prod
+            sum = sum + tf * idf
+        return sum
 
     def _tf(self, candidate_dense, term_idx, number_words):
         return candidate_dense[term_idx] / number_words

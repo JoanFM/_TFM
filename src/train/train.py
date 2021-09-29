@@ -263,8 +263,9 @@ if __name__ == '__main__':
     vectorizer_path = f'/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words_filtered_{min_num_appareances}.pkl' if min_num_appareances is not None else f'/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words.pkl'
     mean_positives, mean_negatives, mean_totals = compute_average_positives_in_vocab(vectorizer_path, 'cpu')
     positive_weights = mean_negatives / mean_positives
-    #positive_weights = 190.2681631496955
-    print( f' mean_positives {mean_positives}, mean_negatives {mean_negatives}, num_totals {mean_negatives} => positive_weights {positive_weights}')
+    # positive_weights = 190.2681631496955
+    print(
+        f' mean_positives {mean_positives}, mean_negatives {mean_negatives}, num_totals {mean_negatives} => positive_weights {positive_weights}')
     train(
         vectorizer_path=vectorizer_path,
         layers=[4096, filter_layer_size[str(min_num_appareances) if min_num_appareances is not None else None]],
