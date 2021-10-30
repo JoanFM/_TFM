@@ -5,6 +5,10 @@ import torch.nn as nn
 
 class DenseVisualFeatureExtractor:
 
+    """
+    The class in charge of extracting the dense features from a pretrained model
+    """
+
     def __init__(self,
                  backbone_model: str = 'resnet50',
                  ):
@@ -46,6 +50,9 @@ class DenseVisualFeatureExtractor:
 
 
 class ImageEncoder(nn.Module):
+    """
+    The Encoder to train that adds a set of Fully Connected Layers expanding from the ouptut of a dense embedding into a sparse one
+    """
 
     def __init__(self, layer_size=None, **kwargs):
         super().__init__()

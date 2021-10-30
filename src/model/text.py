@@ -11,6 +11,9 @@ cur_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 class TextEncoder:
+    """
+    The encoder that given a text, extracts a sparse vector where every index corresponds to an image or token in the vocabulary
+    """
 
     def __init__(self, model_path, **kwargs):
         super().__init__()
@@ -23,6 +26,9 @@ class TextEncoder:
 
 
 def get_model():
+    """
+    Given a DataLoader loading only captions fit into a CountVectorizer to obtain the TextEncoder model to use for training
+    """
     # 4154 words appear at least 10 times in the full 30k dataset
     # train_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
     #                                         split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',

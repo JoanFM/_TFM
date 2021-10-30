@@ -22,15 +22,31 @@ def display(results):
 
 def load_index_and_model(inverted_index_path: str = '/hdd/master/tfm/sparse_indexers_tmp-test/epoch-90',
                          vectorizer_path: str = '/hdd/master/tfm'
-                                                '/vectorizer_tokenizer_stop_words_all_words_filtered_3000.pkl', ):
+                                                '/vectorizer_tokenizer_stop_words_all_words_filtered_3000.pkl'):
+    """
+    Loads both a text encoder
+
+    :param inverted_index_path: The inverted index path from where to load the inverted index to query
+    :param vectorizer_path: The vectorizer path from where to load the TextEncoder
+    :return:
+    """
     query_indexer = QuerySparseInvertedIndexer(
         base_path=inverted_index_path)
     model = TextEncoder(vectorizer_path)
     return query_indexer, model
 
 
-def search(query, indexer, model, top_k):
-    query_embedding = model.forward([query])
+def search(query, indexer, text_encoder, top_k):
+    """
+    Compute a search query against an indexer
+
+    :param query: The sentence query
+    :param indexer: The Inverted Index with the images indexed
+    :param text_encoder: The Text Encoder
+    :param top_k: THe amount of images to return
+    :return:
+    """
+    query_embedding = text_encoder.forward([query])
     query_embedding = query_embedding / query_embedding
     query_embedding[query_embedding != query_embedding] = 0
     query_embedding = csr_matrix(query_embedding)
@@ -42,7 +58,10 @@ def search(query, indexer, model, top_k):
 
 
 if __name__ == '__main__':
-    indexer, model = load_index_and_model()
+    """
+    Application trying to show the results to some queries
+    """
+    indexer, text_encoder = load_index_and_model()
     while True:
         query = input("Please enter your query: ")
-        search(query, indexer, model, None)
+        search(query, indexer, text_encoder, None)
