@@ -201,7 +201,7 @@ class QuerySparseInvertedIndexer:
         self.inverted_index = StorageLink.load_from_file(base_path)
         self.log_queries = open(os.path.join(base_path, 'logs.txt'), 'a')
 
-    def search(self, query: 'scipy.sparse.csr_matrix', top_k: Optional[int], **kwargs):
+    def search(self, query: 'scipy.sparse.csr_matrix', top_k: Optional[int], text: Optional[str] = None, **kwargs):
         """
         Add into the inverted index a set of documents with ids that have sparse vectors from which to extract the inverted index keys
 
@@ -210,8 +210,9 @@ class QuerySparseInvertedIndexer:
         :param kwargs: Extra kwargs
         :return: the candidates ids
         """
-        self.log_queries.write(f'{query}\n')
-        self.log_queries.flush()
+        if text is not None:
+            self.log_queries.write(f'Query: "{text}" . It has {len(query.indices)} tokens\n')
+            self.log_queries.flush()
         return self.inverted_index.match(query, top_k, **kwargs)
 
     def analyze(self, **kwargs):

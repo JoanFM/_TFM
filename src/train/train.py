@@ -99,7 +99,7 @@ def run_evaluations(image_encoder, text_encoder, validation_indexers_path, batch
     image_encoder.sparse_encoder.eval()
     image_encoder.eval()
     eval_start = time.time()
-    print(f' Index the images into the Inverted Index')
+    print(colored(f' Index the images into the Inverted Index', 'black', 'on_grey'))
     with Bar(f'Indexing images into Sparse Index',
              max=len(image_data_loader)) as image_indexing_bar:
         with AddSparseInvertedIndexer(
@@ -111,41 +111,47 @@ def run_evaluations(image_encoder, text_encoder, validation_indexers_path, batch
                 if batch_id % 100 == 0:
                     print(
                         f' Indexed {batch_size * (batch_id + 1)} images out of {len(image_data_loader) * batch_size}')
-            print(f' Analyze Image Indexer Add')
+            print(colored(f' Analyze Image Indexer Add', 'black', 'on_grey'))
             image_indexer.analyze()
-
+    print(colored(f'\n Inverted index filled in {time.time() - eval_start}s', 'black', 'on_grey'))
+    querying_start = time.time()
     retrieved_image_filenames = []  # it should be a list of lists
     groundtruth_expected_image_filenames = []  # it should be a list of lists
     num_buckets_query = []
     with Bar(f'Querying Image Sparse Index with text',
              max=len(text_data_loader)) as querying_bar:
-        with AddSparseInvertedIndexer(base_path=f'{validation_indexers_path}-{split}-text') as text_indexer:
-            query_indexer = QuerySparseInvertedIndexer(
-                base_path=f'{validation_indexers_path}-{split}-image')
-            print(f' Query the inverted index with text')
-            for batch_id, (filenames, captions) in enumerate(text_data_loader):
-                text_embedding_query = csr_matrix(text_encoder.forward(captions).detach().numpy())
-                text_indexer.add(list(zip(captions, filenames)), text_embedding_query)
+    #with AddSparseInvertedIndexer(base_path=f'{validation_indexers_path}-{split}-text') as text_indexer:
+        query_indexer = QuerySparseInvertedIndexer(
+            base_path=f'{validation_indexers_path}-{split}-image')
+        print(colored(f' Query the inverted index with text', 'black', 'on_grey'))
+        for batch_id, (filenames, captions) in enumerate(text_data_loader):
+            text_embedding_query = csr_matrix(text_encoder.forward(captions).detach().numpy())
+     #       text_indexer.add(list(zip(captions, filenames)), text_embedding_query)
 
-                for i in range(text_embedding_query.shape[0]):
-                    num_buckets_query.append(len(text_embedding_query.getrow(i).indices))
-                    results = query_indexer.search(text_embedding_query.getrow(i), None)
-                    retrieved_image_filenames.append(results)
-                    groundtruth_expected_image_filenames.append([filenames[i]])
-                if batch_id % 100:
-                    print(
-                        f' Queried {batch_size * (batch_id + 1)} captions out of {len(text_data_loader) * batch_size}')
-                querying_bar.next()
-        print(f' Analyze Image Indexer Query')
+            for i in range(text_embedding_query.shape[0]):
+                num_buckets_query.append(len(text_embedding_query.getrow(i).indices))
+                results = query_indexer.search(text_embedding_query.getrow(i), None, captions[i])
+                retrieved_image_filenames.append(results)
+                groundtruth_expected_image_filenames.append([filenames[i]])
+            if batch_id % 100 == 0:
+                print(
+                    f' Queried {batch_size * (batch_id + 1)} captions out of {len(text_data_loader) * batch_size}')
+            querying_bar.next()
+        print(colored(f' Analyze Image Indexer Query', 'black', 'on_grey'))
         query_indexer.analyze()
+
+    print(colored(f' Results collected in {time.time() - querying_start}s', 'black', 'on_grey'))
+    compute_start = time.time()
 
     t2i_evaluations = evaluate(['recall', 'reciprocal_rank', 'num_candidates'], retrieved_image_filenames,
                                groundtruth_expected_image_filenames,
                                top_ks)
+    print(colored(f' Evaluation computed in {time.time() - compute_start}s', 'black', 'on_grey'))
+
     print(colored('#' * 70, 'black', 'on_red'))
     print(colored(f'RESULTS of {split} EVALUATION text2Image retrieval: {t2i_evaluations}', 'black', 'on_red'))
     print(colored(f' Average number of buckets for query {np.average(num_buckets_query)}', 'black', 'on_red'))
-    print(colored(f'time elapsed:\t {time.time() - eval_start}s', 'black', 'on_red'))
+    print(colored(f'Total run_evaluation time elapsed:\t {time.time() - eval_start}s', 'black', 'on_red'))
 
 
 def csr_vappend(a, b):
