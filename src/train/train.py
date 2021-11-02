@@ -9,10 +9,12 @@ import numpy as np
 
 from src.model import ImageEncoder
 from src.model import TextEncoder
+
 from src.dataset import get_data_loader, get_image_data_loader, get_captions_data_loader
-from src.vector_store.sparse_inverted_index import AddSparseInvertedIndexer, QuerySparseInvertedIndexer
 from src.evaluate import evaluate
 from scipy.sparse import csr_matrix
+from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.metrics.pairwise import cosine_similarity
 
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -74,86 +76,6 @@ def colored(
     return text
 
 
-def run_evaluations(image_encoder, text_encoder, validation_indexers_path, batch_size, root, split_root, split,
-                    top_ks=[5, 10, 20, None]):
-
-    """
-    Runs evaluations of an ImageEncoder resulting from some training
-
-    :param image_encoder: The ImageEncoder to extract the embeddings from where to compute evaluation
-    :param text_encoder: The TextEncoder to extract the embeddings from where to compute evaluation
-    :param validation_indexers_path: The base directory path where the inverted indexes will be kept to query from text
-    :param batch_size: The batch_size to load
-    :param root: The root file path of the data loader, where the images are found
-    :param split_root: The root file path of the data loader specific to the split, where the indices of the split are kept
-    :param split: The split of data to evaluate on (eval, val, train)
-    :param top_ks: The top_ks parameters to run evaluation on
-    :return:
-    """
-
-    print(colored('#' * 70, 'black', 'on_red'))
-    print(colored(f'{split} EVALUATION text2Image retrieval start ', 'black', 'on_red'))
-    image_data_loader = get_image_data_loader(root=root, split_root=split_root, split=split, batch_size=batch_size)
-    text_data_loader = get_captions_data_loader(root=root, split_root=split_root, split=split, batch_size=batch_size)
-    image_encoder.feature_extractor.model.eval()
-    image_encoder.sparse_encoder.eval()
-    image_encoder.eval()
-    eval_start = time.time()
-    print(colored(f' Index the images into the Inverted Index', 'black', 'on_grey'))
-    with Bar(f'Indexing images into Sparse Index',
-             max=len(image_data_loader)) as image_indexing_bar:
-        with AddSparseInvertedIndexer(
-                base_path=f'{validation_indexers_path}-{split}-image') as image_indexer:
-            for batch_id, (filenames, images) in enumerate(image_data_loader):
-                image_embedding = image_encoder.forward(images).detach().numpy()
-                image_indexer.add(filenames, csr_matrix(image_embedding))
-                image_indexing_bar.next()
-                if batch_id % 100 == 0:
-                    print(
-                        f' Indexed {batch_size * (batch_id + 1)} images out of {len(image_data_loader) * batch_size}')
-            print(colored(f' Analyze Image Indexer Add', 'black', 'on_grey'))
-            image_indexer.analyze()
-    print(colored(f'\n Inverted index filled in {time.time() - eval_start}s', 'black', 'on_grey'))
-    querying_start = time.time()
-    retrieved_image_filenames = []  # it should be a list of lists
-    groundtruth_expected_image_filenames = []  # it should be a list of lists
-    num_buckets_query = []
-    with Bar(f'Querying Image Sparse Index with text',
-             max=len(text_data_loader)) as querying_bar:
-    #with AddSparseInvertedIndexer(base_path=f'{validation_indexers_path}-{split}-text') as text_indexer:
-        query_indexer = QuerySparseInvertedIndexer(
-            base_path=f'{validation_indexers_path}-{split}-image')
-        print(colored(f' Query the inverted index with text', 'black', 'on_grey'))
-        for batch_id, (filenames, captions) in enumerate(text_data_loader):
-            text_embedding_query = csr_matrix(text_encoder.forward(captions).detach().numpy())
-     #       text_indexer.add(list(zip(captions, filenames)), text_embedding_query)
-
-            for i in range(text_embedding_query.shape[0]):
-                num_buckets_query.append(len(text_embedding_query.getrow(i).indices))
-                results = query_indexer.search(text_embedding_query.getrow(i), None, captions[i])
-                retrieved_image_filenames.append(results)
-                groundtruth_expected_image_filenames.append([filenames[i]])
-            if batch_id % 100 == 0:
-                print(
-                    f' Queried {batch_size * (batch_id + 1)} captions out of {len(text_data_loader) * batch_size}')
-            querying_bar.next()
-        print(colored(f' Analyze Image Indexer Query', 'black', 'on_grey'))
-        query_indexer.analyze()
-
-    print(colored(f' Results collected in {time.time() - querying_start}s', 'black', 'on_grey'))
-    compute_start = time.time()
-
-    t2i_evaluations = evaluate(['recall', 'reciprocal_rank', 'num_candidates'], retrieved_image_filenames,
-                               groundtruth_expected_image_filenames,
-                               top_ks)
-    print(colored(f' Evaluation computed in {time.time() - compute_start}s', 'black', 'on_grey'))
-
-    print(colored('#' * 70, 'black', 'on_red'))
-    print(colored(f'RESULTS of {split} EVALUATION text2Image retrieval: {t2i_evaluations}', 'black', 'on_red'))
-    print(colored(f' Average number of buckets for query {np.average(num_buckets_query)}', 'black', 'on_red'))
-    print(colored(f'Total run_evaluation time elapsed:\t {time.time() - eval_start}s', 'black', 'on_red'))
-
-
 def csr_vappend(a, b):
     """ Takes in 2 csr_matrices and appends the second one to the bottom of the first one.
     Much faster than scipy.sparse.vstack but assumes the type to be csr and overwrites
@@ -165,6 +87,142 @@ def csr_vappend(a, b):
     a.indptr = np.hstack((a.indptr, (b.indptr + a.nnz)[1:]))
     a._shape = (a.shape[0] + b.shape[0], b.shape[1])
     return a
+
+
+def analyse_index(index_images: csr_matrix):
+    """
+    Print some analysis data on the inverted index.
+
+    How big is the vocabulary,
+    How many words (tokens) (keys) have at least one document attached
+    How many words do not have a document (image) attached
+    How many images are at each backet (with and without counting empty bins)
+    """
+    count_by_token = {}
+    size_vocabulary = index_images.shape[1]
+    num_images = index_images.shape[0]
+
+    print(f' Analyzing index with {num_images} images with vocabulary size {size_vocabulary}')
+    for i in range(num_images):
+        for _i in index_images.getrow(i).indices:
+            if _i not in count_by_token:
+                count_by_token[_i] = 0
+            count_by_token[_i] += 1
+
+    count = 0
+    counts = []
+    counts_ignoring_0_sized = []
+    for i in range(size_vocabulary):
+        if i in count_by_token:
+            counts_ignoring_0_sized.append(count_by_token[i])
+            counts.append(count_by_token[i])
+        else:
+            counts.append(0.0)
+    print(colored(f' Number of keys with at least one candidate => {len(count_by_token.keys())} out of {size_vocabulary}', 'cyan'))
+    print(colored(f' Size of vocabulary {size_vocabulary}', 'cyan'))
+    print(colored(f' Number of empty bins => {size_vocabulary - len(count_by_token.keys())}', 'cyan'))
+    print(colored(
+        f' Average amount of documents per bucket, ignoring 0-sized buckets => mean: {np.mean(counts_ignoring_0_sized)}, std: {np.std(counts_ignoring_0_sized)}',
+        'cyan'))
+    print(colored(
+        f' Average amount of documents per bucket, counting 0-sized buckets => mean: {np.mean(counts)}, std: {np.std(counts)}',
+        'cyan'))
+
+
+def run_evaluations(image_encoder, text_encoder, batch_size, root, split_root, split,
+                    top_ks=[5, 10, 20, 100, None]):
+    """
+    Runs evaluations of an ImageEncoder resulting from some training
+
+    :param image_encoder: The ImageEncoder to extract the embeddings from where to compute evaluation
+    :param text_encoder: The TextEncoder to extract the embeddings from where to compute evaluation
+    :param batch_size: The batch_size to load
+    :param root: The root file path of the data loader, where the images are found
+    :param split_root: The root file path of the data loader specific to the split, where the indices of the split are kept
+    :param split: The split of data to evaluate on (eval, val, train)
+    :param top_ks: The top_ks parameters to run evaluation on
+    :return:
+    """
+    print(colored('#' * 70, 'black', 'on_red'))
+    print(colored(f'{split} EVALUATION text2Image retrieval start ', 'black', 'on_red'))
+    query_batch_size = 1000
+    image_data_loader = get_image_data_loader(root=root, split_root=split_root, split=split, batch_size=batch_size)
+    image_encoder.feature_extractor.model.eval()
+    image_encoder.sparse_encoder.eval()
+    image_encoder.eval()
+    eval_start = time.time()
+    all_image_embeddings = None
+    image_filenames = []
+    print(colored(f' Extract the sparse embeddings of all the images', 'black', 'on_yellow'))
+    with Bar(f'Indexing images into Sparse Index',
+             max=len(image_data_loader)) as image_indexing_bar:
+        for batch_id, (filenames, images) in enumerate(image_data_loader):
+            image_embedding = image_encoder.forward(images).detach().numpy()
+            if all_image_embeddings is None:
+                all_image_embeddings = csr_matrix(image_embedding)
+            else:
+                all_image_embeddings = csr_vappend(all_image_embeddings, csr_matrix(image_embedding))
+            image_filenames.extend(filenames)
+            image_indexing_bar.next()
+            if batch_id % 100 == 0:
+                print(
+                    f' Indexed {batch_size * (batch_id + 1)} images out of {len(image_data_loader) * batch_size}')
+
+    print(colored(f'\n Image embeddings collected in {time.time() - eval_start}s', 'black', 'on_yellow'))
+
+    fit_start = time.time()
+    print(colored(f'\n Fit transform a TFIDFTransformer with the images in the collection', 'black', 'on_yellow'))
+    tfidf_transformer = TfidfTransformer()
+    image_tfidf_index = tfidf_transformer.fit_transform(all_image_embeddings)
+    print(colored(f'\n TFIDF Transform fitting finished in {time.time() - fit_start}s', 'black', 'on_yellow'))
+    analyse_start = time.time()
+    print(colored(f'\n Analyse computed index', 'black', 'on_yellow'))
+    analyse_index(image_tfidf_index)
+    print(colored(f'\n Analysis on computed index done in {time.time() - analyse_start}', 'black', 'on_yellow'))
+    all_image_embeddings = None
+    image_encoder = None
+
+    accum_evaluation_results = {}  # {'metric': {'sum': 0, 'num': 0}
+
+    querying_start = time.time()
+    num_buckets_query = []
+    text_data_loader = get_captions_data_loader(root=root, split_root=split_root, split=split,
+                                                batch_size=query_batch_size)
+
+    with Bar(f'Querying Image Sparse Index with text',
+             max=len(text_data_loader)) as querying_bar:
+        print(colored(f' Query the TFIDF', 'black', 'on_yellow'))
+        for batch_id, (filenames, captions) in enumerate(text_data_loader):
+            text_embedding_query = csr_matrix(text_encoder.forward(captions).detach().numpy())
+            cosine_scores = cosine_similarity(text_embedding_query, image_tfidf_index)
+            retrieved_image_filenames = []  # it should be a list of lists
+            groundtruth_expected_image_filenames = []  # it should be a list of lists
+            for i in range(text_embedding_query.shape[0]):
+                num_buckets_query.append(len(text_embedding_query.getrow(i).indices))
+                results = [filename for filename, score in
+                           sorted(zip(image_filenames, cosine_scores[i]), key=lambda pair: pair[1], reverse=True)]
+                retrieved_image_filenames.append(results)
+                groundtruth_expected_image_filenames.append([filenames[i]])
+            evaluate(['recall', 'reciprocal_rank', 'num_candidates'], retrieved_image_filenames,
+                     groundtruth_expected_image_filenames,
+                     top_ks,
+                     accum_evaluation_results, print_results=False)
+
+            if batch_id % 100 == 0:
+                print(
+                    f' Queried {query_batch_size * (batch_id + 1)} captions out of {len(text_data_loader) * query_batch_size}')
+            querying_bar.next()
+
+    print(colored(f' Results collected in {time.time() - querying_start}s', 'black', 'on_yellow'))
+    compute_start = time.time()
+
+    t2i_evaluations = {k: v['sum'] / v['num'] for k, v in accum_evaluation_results.items()}
+    print(colored(f' Evaluation computed in {time.time() - compute_start}s', 'black', 'on_yellow'))
+
+    print(colored('#' * 70, 'black', 'on_red'))
+    print(colored(f'RESULTS of {split} EVALUATION text2Image retrieval: {t2i_evaluations}', 'black', 'on_red'))
+    print(colored(f' Average number of buckets for query {np.average(num_buckets_query)}', 'black', 'on_red'))
+    print(colored(f'Total run_evaluation time elapsed:\t {time.time() - eval_start}s', 'black', 'on_red'))
 
 
 def validation_loop(image_encoder, text_encoder, dataloader, device, loss_fn, training_batch_id):
@@ -234,7 +292,6 @@ def compute_average_positives_in_vocab(vectorizer_path,
 
 def train(output_model_path: str = '/hdd/master/tfm/output_models-test',
           vectorizer_path: str = '/hdd/master/tfm/vectorizer_tokenizer_stop_words_analyze_filtered.pkl',
-          validation_indexers_base_path: str = '/hdd/master/tfm/sparse_indexers',
           positive_weights: float = 1.0,
           num_epochs: int = 100,
           batch_size: int = 8,
@@ -245,7 +302,6 @@ def train(output_model_path: str = '/hdd/master/tfm/output_models-test',
 
     :param output_model_path: The base directory path where output models of each epoch are saved
     :param vectorizer_path: The vectorizer path from where the TextEncoder's vectorizer is loaded
-    :param validation_indexers_base_path: The base directory path where sparse indexers for evaluations are stored
     :param positive_weights: The positive weights to pass to `torch.nn.BCEWithLogitsLoss` to compensate for an unbalanced dataset, so that the model can
         focus on bringing 1 to 1 and not only setting 0 to 0
     :param num_epochs: The number of epochs to run the training for
@@ -334,17 +390,14 @@ def train(output_model_path: str = '/hdd/master/tfm/output_models-test',
 
             if epoch % 1 == 0:
                 run_evaluations(image_encoder, text_encoder,
-                                os.path.join(validation_indexers_base_path, f'epoch-{epoch}'),
                                 batch_size, root='/hdd/master/tfm/flickr30k_images',
                                 split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
                                 split='test')
                 run_evaluations(image_encoder, text_encoder,
-                                os.path.join(validation_indexers_base_path, f'epoch-{epoch}'),
                                 batch_size, root='/hdd/master/tfm/flickr30k_images',
                                 split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
                                 split='val')
                 run_evaluations(image_encoder, text_encoder,
-                                os.path.join(validation_indexers_base_path, f'epoch-{epoch}'),
                                 batch_size, root='/hdd/master/tfm/flickr30k_images',
                                 split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
                                 split='train',
@@ -372,11 +425,10 @@ if __name__ == '__main__':
             text_encoder = TextEncoder(vectorizer_path)
             validation_indexers_base_path: str = f'/hdd/master/tfm/sparse_indexers/evaluate-{split}'
             run_evaluations(image_encoder, text_encoder,
-                            validation_indexers_base_path,
                             batch_size=16, root='/hdd/master/tfm/flickr30k_images',
                             split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
                             split=split,
-                            top_ks=[5, 10, 20])
+                            top_ks=[5, 10, 20, None])
     else:
         min_num_appareances = 10
         vectorizer_path = f'/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words_filtered_{min_num_appareances}.pkl' if min_num_appareances is not None else f'/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words.pkl'

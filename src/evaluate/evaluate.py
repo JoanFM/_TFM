@@ -1,4 +1,5 @@
-from typing import Sequence, Any, Optional, List
+from typing import Sequence, Any, Optional, List, Dict
+from collections import defaultdict
 
 
 def recall(
@@ -36,26 +37,48 @@ def reciprocal_rank(
 def evaluate(metrics: List[str],
              retrieved_image_filenames: List[List[str]],
              groundtruth_expected_image_filenames: List[List[str]],
-             top_ks: List[Optional[int]]):
+             top_ks: List[Optional[int]],
+             accum_evaluation_results: Optional[Dict] = None,
+             print_results: bool = True):
     ret = {}
     for metric in metrics:
         if metric == 'num_candidates':
             mean_num_candidates = 0
             for actual in retrieved_image_filenames:
                 mean_num_candidates += len(actual)
+                if accum_evaluation_results is not None:
+                    if 'num_candidates' not in accum_evaluation_results:
+                        accum_evaluation_results['num_candidates'] = defaultdict(float)
+                    accum_evaluation_results['num_candidates']['sum'] += len(actual)
+                    accum_evaluation_results['num_candidates']['num'] += 1
             ret[f'num_candidates'] = mean_num_candidates/len(retrieved_image_filenames)
-            print(f' Mean num_candidates {mean_num_candidates/len(retrieved_image_filenames)}')
+            if print_results:
+                print(f' Mean num_candidates {mean_num_candidates/len(retrieved_image_filenames)}')
         if metric == 'recall':
             for eval_at in top_ks:
                 mean_recall = 0
                 for actual, desired in zip(retrieved_image_filenames, groundtruth_expected_image_filenames):
-                    mean_recall += recall(actual, desired, eval_at)
+                    recall_value = recall(actual, desired, eval_at)
+                    mean_recall += recall_value
+                    if accum_evaluation_results is not None:
+                        if f'recall@{eval_at}' not in accum_evaluation_results:
+                            accum_evaluation_results[f'recall@{eval_at}'] = defaultdict(float)
+                        accum_evaluation_results[f'recall@{eval_at}']['sum'] += recall_value
+                        accum_evaluation_results[f'recall@{eval_at}']['num'] += 1
                 ret[f'recall@{eval_at}'] = mean_recall/len(groundtruth_expected_image_filenames)
-                print(f' Mean Recall@{eval_at} {mean_recall/len(groundtruth_expected_image_filenames)}')
+                if print_results:
+                    print(f' Mean Recall@{eval_at} {mean_recall/len(groundtruth_expected_image_filenames)}')
         if metric == 'reciprocal_rank':
             mean_reciprocal_rank = 0
             for actual, desired in zip(retrieved_image_filenames, groundtruth_expected_image_filenames):
-                mean_reciprocal_rank += reciprocal_rank(actual, desired)
-            print(f' Mean Reciprocal rank {mean_reciprocal_rank/len(groundtruth_expected_image_filenames)}')
+                reciprocal_rank_value = reciprocal_rank(actual, desired)
+                mean_reciprocal_rank += reciprocal_rank_value
+                if accum_evaluation_results is not None:
+                    if f'reciprocal_rank' not in accum_evaluation_results:
+                        accum_evaluation_results[f'reciprocal_rank'] = defaultdict(float)
+                    accum_evaluation_results[f'reciprocal_rank']['sum'] += reciprocal_rank_value
+                    accum_evaluation_results[f'reciprocal_rank']['num'] += 1
+            if print_results:
+                print(f' Mean Reciprocal rank {mean_reciprocal_rank/len(groundtruth_expected_image_filenames)}')
             ret['reciprocal_rank'] = mean_reciprocal_rank/len(groundtruth_expected_image_filenames)
     return ret
