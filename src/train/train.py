@@ -109,7 +109,6 @@ def analyse_index(index_images: csr_matrix):
                 count_by_token[_i] = 0
             count_by_token[_i] += 1
 
-    count = 0
     counts = []
     counts_ignoring_0_sized = []
     for i in range(size_vocabulary):
@@ -203,7 +202,7 @@ def run_evaluations(image_encoder, text_encoder, batch_size, root, split_root, s
                            sorted(zip(image_filenames, cosine_scores[i]), key=lambda pair: pair[1], reverse=True)]
                 retrieved_image_filenames.append(results)
                 groundtruth_expected_image_filenames.append([filenames[i]])
-            evaluate(['recall', 'reciprocal_rank', 'num_candidates'], retrieved_image_filenames,
+            evaluate(['recall', 'reciprocal_rank'], retrieved_image_filenames,
                      groundtruth_expected_image_filenames,
                      top_ks,
                      accum_evaluation_results, print_results=False)
@@ -428,7 +427,7 @@ if __name__ == '__main__':
                             batch_size=16, root='/hdd/master/tfm/flickr30k_images',
                             split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
                             split=split,
-                            top_ks=[5, 10, 20, None])
+                            top_ks=[1, 5, 10, 20, None])
     else:
         min_num_appareances = 10
         vectorizer_path = f'/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words_filtered_{min_num_appareances}.pkl' if min_num_appareances is not None else f'/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words.pkl'
