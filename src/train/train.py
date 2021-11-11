@@ -3,9 +3,9 @@ import time
 import os
 import pickle
 from typing import List, Optional, Union
-from progress.bar import Bar
 
 import numpy as np
+from progress.bar import Bar
 
 from src.model import ImageEncoder
 from src.model import TextEncoder
@@ -20,8 +20,10 @@ cur_dir = os.path.dirname(os.path.abspath(__file__))
 
 # The base directory where models are stored after every epoch
 IMAGE_EMBEDDING_BASE_PATH = os.getenv('IMAGE_EMBEDDING_BASE_PATH', '/hdd/master/tfm/output-image-encoders')
-# The base directory where models where CountVectorizer are stored. Different CountVectorizers correspond to different preprocessings of the corpus
-TEXT_EMBEDDING_VECTORIZER_BASE_PATH = os.getenv('TEXT_EMBEDDING_VECTORIZER_PATH', '/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words_filtered_10.pkl')
+# The base directory where models where CountVectorizer are stored. Different CountVectorizers correspond to
+# different preprocessings of the corpus
+TEXT_EMBEDDING_VECTORIZER_BASE_PATH = os.getenv('TEXT_EMBEDDING_VECTORIZER_PATH',
+                                                '/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words_filtered_10.pkl')
 # The root path where the flickr30k dataset is found
 DATASET_ROOT_PATH = os.getenv('DATASET_ROOT_PATH', '/hdd/master/tfm/flickr30k_images')
 # The root path where the flickr30k entities per split is kept
@@ -110,9 +112,11 @@ def analyse_index(index_images: csr_matrix):
     count_by_token = {}
     size_vocabulary = index_images.shape[1]
     num_images = index_images.shape[0]
-
+    num_active_features = []
     print(f' Analyzing index with {num_images} images with vocabulary size {size_vocabulary}')
+
     for i in range(num_images):
+        num_active_features.append(len(index_images.getrow(i).indices))
         for _i in index_images.getrow(i).indices:
             if _i not in count_by_token:
                 count_by_token[_i] = 0
@@ -126,7 +130,9 @@ def analyse_index(index_images: csr_matrix):
             counts.append(count_by_token[i])
         else:
             counts.append(0.0)
-    print(colored(f' Number of keys with at least one candidate => {len(count_by_token.keys())} out of {size_vocabulary}', 'cyan'))
+    print(
+        colored(f' Number of keys with at least one candidate => {len(count_by_token.keys())} out of {size_vocabulary}',
+                'cyan'))
     print(colored(f' Size of vocabulary {size_vocabulary}', 'cyan'))
     print(colored(f' Number of empty bins => {size_vocabulary - len(count_by_token.keys())}', 'cyan'))
     print(colored(
@@ -135,6 +141,61 @@ def analyse_index(index_images: csr_matrix):
     print(colored(
         f' Average amount of documents per bucket, counting 0-sized buckets => mean: {np.mean(counts)}, std: {np.std(counts)}',
         'cyan'))
+    print(colored(
+        f' Average active features in images => mean: {np.mean(num_active_features)}, std: {np.std(num_active_features)}',
+        'cyan'))
+
+
+def extract_all_image_embeddings_and_filenames(image_encoder, batch_size, root, split_root, split):
+    """
+    Extracts all the image embeddings as a csr_matrix and all the image filenames from a split of data with a given image encoder
+
+    :param image_encoder: The ImageEncoder to extract the embeddings from where to compute evaluation
+    :param batch_size: The batch_size to load
+    :param root: The root file path of the data loader, where the images are found
+    :param split_root: The root file path of the data loader specific to the split, where the indices of the split are kept
+    :param split: The split of data to evaluate on (eval, val, train)
+    :return:
+    """
+    image_encoder.feature_extractor.model.eval()
+    image_encoder.sparse_encoder.eval()
+    image_encoder.eval()
+    image_data_loader = get_image_data_loader(root=root, split_root=split_root, split=split, batch_size=batch_size)
+    all_image_embeddings = None
+    image_filenames = []
+    print(colored(f' Extract the sparse embeddings of all the images', 'black', 'on_yellow'))
+    with Bar(f'Indexing images into Sparse Index',
+             max=len(image_data_loader)) as image_indexing_bar:
+        for batch_id, (filenames, images) in enumerate(image_data_loader):
+            image_embedding = image_encoder.forward(images).detach().numpy()
+            if all_image_embeddings is None:
+                all_image_embeddings = csr_matrix(image_embedding)
+            else:
+                all_image_embeddings = csr_vappend(all_image_embeddings, csr_matrix(image_embedding))
+            image_filenames.extend(filenames)
+            image_indexing_bar.next()
+            if batch_id % 100 == 0:
+                print(
+                    f' Indexed {batch_size * (batch_id + 1)} images out of {len(image_data_loader) * batch_size}')
+    return all_image_embeddings, image_filenames
+
+
+def analyse(image_encoder, batch_size, root, split_root, split):
+    """
+    Analyses the index resulting from extracting all the embeddings from the images in a split of data with a given image encoder
+
+    :param image_encoder: The ImageEncoder to extract the embeddings from where to compute evaluation
+    :param batch_size: The batch_size to load
+    :param root: The root file path of the data loader, where the images are found
+    :param split_root: The root file path of the data loader specific to the split, where the indices of the split are kept
+    :param split: The split of data to evaluate on (eval, val, train)
+    :return:
+    """
+    all_image_embeddings, image_filenames = extract_all_image_embeddings_and_filenames(image_encoder, batch_size, root,
+                                                                                        split_root, split)
+    tfidf_transformer = TfidfTransformer()
+    image_tfidf_index = tfidf_transformer.fit_transform(all_image_embeddings)
+    analyse_index(image_tfidf_index)
 
 
 def run_evaluations(image_encoder, text_encoder, batch_size, root, split_root, split,
@@ -154,27 +215,9 @@ def run_evaluations(image_encoder, text_encoder, batch_size, root, split_root, s
     print(colored('#' * 70, 'black', 'on_red'))
     print(colored(f'{split} EVALUATION text2Image retrieval start ', 'black', 'on_red'))
     query_batch_size = 1000
-    image_data_loader = get_image_data_loader(root=root, split_root=split_root, split=split, batch_size=batch_size)
-    image_encoder.feature_extractor.model.eval()
-    image_encoder.sparse_encoder.eval()
-    image_encoder.eval()
     eval_start = time.time()
-    all_image_embeddings = None
-    image_filenames = []
-    print(colored(f' Extract the sparse embeddings of all the images', 'black', 'on_yellow'))
-    with Bar(f'Indexing images into Sparse Index',
-             max=len(image_data_loader)) as image_indexing_bar:
-        for batch_id, (filenames, images) in enumerate(image_data_loader):
-            image_embedding = image_encoder.forward(images).detach().numpy()
-            if all_image_embeddings is None:
-                all_image_embeddings = csr_matrix(image_embedding)
-            else:
-                all_image_embeddings = csr_vappend(all_image_embeddings, csr_matrix(image_embedding))
-            image_filenames.extend(filenames)
-            image_indexing_bar.next()
-            if batch_id % 100 == 0:
-                print(
-                    f' Indexed {batch_size * (batch_id + 1)} images out of {len(image_data_loader) * batch_size}')
+    all_image_embeddings, image_filenames = extract_all_image_embeddings_and_filenames(image_encoder, batch_size, root,
+                                                                                    split_root, split)
 
     print(colored(f'\n Image embeddings collected in {time.time() - eval_start}s', 'black', 'on_yellow'))
 
@@ -436,17 +479,30 @@ if __name__ == '__main__':
                             split_root=DATASET_SPLIT_ROOT_PATH,
                             split=split,
                             top_ks=[1, 5, 10, 20, None])
-    else:
-        min_num_appareances = 10
-        vectorizer_path = f'{TEXT_EMBEDDING_VECTORIZER_BASE_PATH}/vectorizer_tokenizer_stop_words_all_words_filtered_{min_num_appareances}.pkl' if min_num_appareances is not None else f'{TEXT_EMBEDDING_VECTORIZER_BASE_PATH}/vectorizer_tokenizer_stop_words_all_words.pkl'
-        mean_positives, mean_negatives, mean_totals = compute_average_positives_in_vocab(vectorizer_path, 'cpu')
-        positive_weights = mean_negatives / mean_positives
-        # positive_weights = 190.2681631496955
-        print(
-            f' mean_positives {mean_positives}, mean_negatives {mean_negatives}, num_totals {mean_negatives} => positive_weights {positive_weights}')
-        train(
-            output_model_path=IMAGE_EMBEDDING_BASE_PATH,
-            vectorizer_path=vectorizer_path,
-            layers=layers,
-            positive_weights=positive_weights,
-            batch_size=16)
+            sys.exit(0)
+
+        if task == 'analyse':
+            split = sys.argv[2]
+            path = sys.argv[3]
+
+            image_encoder = ImageEncoder(layer_size=layers)
+            image_encoder.load_state_dict(torch.load(path))
+            image_encoder.eval()
+            analyse(image_encoder, batch_size=16, root=DATASET_ROOT_PATH,
+                    split_root=DATASET_SPLIT_ROOT_PATH,
+                    split=split)
+            sys.exit(0)
+
+    min_num_appareances = 10
+    vectorizer_path = f'{TEXT_EMBEDDING_VECTORIZER_BASE_PATH}/vectorizer_tokenizer_stop_words_all_words_filtered_{min_num_appareances}.pkl' if min_num_appareances is not None else f'{TEXT_EMBEDDING_VECTORIZER_BASE_PATH}/vectorizer_tokenizer_stop_words_all_words.pkl'
+    mean_positives, mean_negatives, mean_totals = compute_average_positives_in_vocab(vectorizer_path, 'cpu')
+    positive_weights = mean_negatives / mean_positives
+    # positive_weights = 190.2681631496955
+    print(
+        f' mean_positives {mean_positives}, mean_negatives {mean_negatives}, num_totals {mean_negatives} => positive_weights {positive_weights}')
+    train(
+        output_model_path=IMAGE_EMBEDDING_BASE_PATH,
+        vectorizer_path=vectorizer_path,
+        layers=layers,
+        positive_weights=positive_weights,
+        batch_size=16)
