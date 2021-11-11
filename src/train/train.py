@@ -18,6 +18,15 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 
+# The base directory where models are stored after every epoch
+IMAGE_EMBEDDING_BASE_PATH = os.getenv('IMAGE_EMBEDDING_BASE_PATH', '/hdd/master/tfm/output-image-encoders')
+# The base directory where models where CountVectorizer are stored. Different CountVectorizers correspond to different preprocessings of the corpus
+TEXT_EMBEDDING_VECTORIZER_BASE_PATH = os.getenv('TEXT_EMBEDDING_VECTORIZER_PATH', '/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words_filtered_10.pkl')
+# The root path where the flickr30k dataset is found
+DATASET_ROOT_PATH = os.getenv('DATASET_ROOT_PATH', '/hdd/master/tfm/flickr30k_images')
+# The root path where the flickr30k entities per split is kept
+DATASET_SPLIT_ROOT_PATH = os.getenv('DATASET_SPLIT_ROOT_PATH', '/hdd/master/tfm/flickr30k_images/flickr30k_entities')
+
 l1_regularization_weight = 1e-7
 
 _ATTRIBUTES = {
@@ -267,8 +276,8 @@ def compute_average_positives_in_vocab(vectorizer_path,
     """
     batch_size = 1
     text_encoder = TextEncoder(vectorizer_path)
-    train_data_loader = get_data_loader(root='/hdd/master/tfm/flickr30k_images',
-                                        split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
+    train_data_loader = get_data_loader(root=DATASET_ROOT_PATH,
+                                        split_root=DATASET_SPLIT_ROOT_PATH,
                                         split='train',
                                         shuffle=True,
                                         batch_size=batch_size)
@@ -289,8 +298,8 @@ def compute_average_positives_in_vocab(vectorizer_path,
     return np.mean(num_positives), np.mean(num_negatives), np.mean(num_totals)
 
 
-def train(output_model_path: str = '/hdd/master/tfm/output_models-test',
-          vectorizer_path: str = '/hdd/master/tfm/vectorizer_tokenizer_stop_words_analyze_filtered.pkl',
+def train(output_model_path: str,
+          vectorizer_path: str,
           positive_weights: float = 1.0,
           num_epochs: int = 100,
           batch_size: int = 8,
@@ -326,14 +335,14 @@ def train(output_model_path: str = '/hdd/master/tfm/output_models-test',
     with Bar('Epochs', max=num_epochs) as epoch_bar:
 
         for epoch in range(num_epochs):
-            train_data_loader = get_data_loader(root='/hdd/master/tfm/flickr30k_images',
-                                                split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
+            train_data_loader = get_data_loader(root=DATASET_ROOT_PATH,
+                                                split_root=DATASET_SPLIT_ROOT_PATH,
                                                 split='train',
                                                 shuffle=True,
                                                 batch_size=batch_size)
 
-            val_data_loader = get_data_loader(root='/hdd/master/tfm/flickr30k_images',
-                                              split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
+            val_data_loader = get_data_loader(root=DATASET_ROOT_PATH,
+                                              split_root=DATASET_SPLIT_ROOT_PATH,
                                               split='val',
                                               shuffle=True,
                                               batch_size=batch_size)
@@ -389,16 +398,16 @@ def train(output_model_path: str = '/hdd/master/tfm/output_models-test',
 
             if epoch % 1 == 0:
                 run_evaluations(image_encoder, text_encoder,
-                                batch_size, root='/hdd/master/tfm/flickr30k_images',
-                                split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
+                                batch_size, root=DATASET_ROOT_PATH,
+                                split_root=DATASET_SPLIT_ROOT_PATH,
                                 split='test')
                 run_evaluations(image_encoder, text_encoder,
-                                batch_size, root='/hdd/master/tfm/flickr30k_images',
-                                split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
+                                batch_size, root=DATASET_ROOT_PATH,
+                                split_root=DATASET_SPLIT_ROOT_PATH,
                                 split='val')
                 run_evaluations(image_encoder, text_encoder,
-                                batch_size, root='/hdd/master/tfm/flickr30k_images',
-                                split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
+                                batch_size, root=DATASET_ROOT_PATH,
+                                split_root=DATASET_SPLIT_ROOT_PATH,
                                 split='train',
                                 top_ks=[5, 10, 20])
             epoch_bar.next()
@@ -409,7 +418,7 @@ if __name__ == '__main__':
 
     min_num_appareances = 10
     filter_layer_size = {'3000': 47, '2000': 80, '1000': 165, '500': 311, '100': 1062, '10': 3537, None: 13439}
-    vectorizer_path = f'/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words_filtered_{min_num_appareances}.pkl' if min_num_appareances is not None else f'/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words.pkl'
+    vectorizer_path = f'{TEXT_EMBEDDING_VECTORIZER_BASE_PATH}/vectorizer_tokenizer_stop_words_all_words_filtered_{min_num_appareances}.pkl' if min_num_appareances is not None else f'{TEXT_EMBEDDING_VECTORIZER_BASE_PATH}/vectorizer_tokenizer_stop_words_all_words.pkl'
     # positive_weights = 190.2681631496955
     layers = [4096, filter_layer_size[str(min_num_appareances) if min_num_appareances is not None else None]]
     if len(sys.argv) > 1:
@@ -422,21 +431,21 @@ if __name__ == '__main__':
             image_encoder.load_state_dict(torch.load(path))
             image_encoder.eval()
             text_encoder = TextEncoder(vectorizer_path)
-            validation_indexers_base_path: str = f'/hdd/master/tfm/sparse_indexers/evaluate-{split}'
             run_evaluations(image_encoder, text_encoder,
-                            batch_size=16, root='/hdd/master/tfm/flickr30k_images',
-                            split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
+                            batch_size=16, root=DATASET_ROOT_PATH,
+                            split_root=DATASET_SPLIT_ROOT_PATH,
                             split=split,
                             top_ks=[1, 5, 10, 20, None])
     else:
         min_num_appareances = 10
-        vectorizer_path = f'/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words_filtered_{min_num_appareances}.pkl' if min_num_appareances is not None else f'/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words.pkl'
+        vectorizer_path = f'{TEXT_EMBEDDING_VECTORIZER_BASE_PATH}/vectorizer_tokenizer_stop_words_all_words_filtered_{min_num_appareances}.pkl' if min_num_appareances is not None else f'{TEXT_EMBEDDING_VECTORIZER_BASE_PATH}/vectorizer_tokenizer_stop_words_all_words.pkl'
         mean_positives, mean_negatives, mean_totals = compute_average_positives_in_vocab(vectorizer_path, 'cpu')
         positive_weights = mean_negatives / mean_positives
         # positive_weights = 190.2681631496955
         print(
             f' mean_positives {mean_positives}, mean_negatives {mean_negatives}, num_totals {mean_negatives} => positive_weights {positive_weights}')
         train(
+            output_model_path=IMAGE_EMBEDDING_BASE_PATH,
             vectorizer_path=vectorizer_path,
             layers=layers,
             positive_weights=positive_weights,

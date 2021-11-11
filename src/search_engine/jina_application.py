@@ -10,15 +10,28 @@ from scipy.sparse import csr_matrix
 
 os.environ['JINA_LOG_LEVEL'] = 'DEBUG'
 
+# File where Jina will store the index
+INDEX_FILE_PATH = os.getenv('INDEX_FILE_PATH', 'tmp/sparse_index')
+# Model to expose for indexing, the path where the state_dict of the model is stored
+IMAGE_EMBEDDING_MODEL_PATH = os.getenv('IMAGE_EMBEDDING_MODEL_PATH', '/hdd/master/tfm/output-image-encoders/model-inter-9-final.pt')
+# Text embedding model to expose for querying, the path where the CountVectorizer is stored of the model is stored
+TEXT_EMBEDDING_VECTORIZER_PATH = os.getenv('TEXT_EMBEDDING_VECTORIZER_PATH', '/hdd/master/tfm/vectorizers/vectorizer_tokenizer_stop_words_all_words_filtered_10.pkl')
+# The root path where the flickr30k dataset is found
+DATASET_ROOT_PATH = os.getenv('DATASET_ROOT_PATH', '/hdd/master/tfm/flickr30k_images')
+# The root path where the flickr30k entities per split is kept
+DATASET_SPLIT_ROOT_PATH = os.getenv('DATASET_SPLIT_ROOT_PATH', '/hdd/master/tfm/flickr30k_images/flickr30k_entities')
+# The split to use for indexing (test, val, train)
+DATASET_SPLIT = os.getenv('DATASET_SPLIT', 'test')
 
-class MatchConverter(Executor):
 
-    @requests
-    def convert(self, docs, **kwargs):
-        for doc in docs:
-            for match in doc.matches:
-                match.set_image_blob_shape(channel_axis=0, shape=(match.blob.shape[1], match.blob.shape[2]))
-                match.convert_image_blob_to_uri()
+# class MatchConverter(Executor):
+#
+#     @requests
+#     def convert(self, docs, **kwargs):
+#         for doc in docs:
+#             for match in doc.matches:
+#                 match.set_image_blob_shape(channel_axis=0, shape=(match.blob.shape[1], match.blob.shape[2]))
+#                 match.convert_image_blob_to_uri()
 
 
 class JinaImageEncoder(Executor):
@@ -49,7 +62,10 @@ class JinaTextEncoder(Executor):
         texts = docs.get_attributes('text')
         embeddings = self._text_encoder.forward(texts)
         for doc, embedding in zip(docs, embeddings):
-            doc.embedding = csr_matrix(embedding.detach().numpy())
+            text_embedding = embedding.detach().numpy()
+            text_embedding = text_embedding / text_embedding
+            text_embedding[text_embedding != text_embedding] = 0
+            doc.embedding = csr_matrix(text_embedding)
 
 
 def csr_vappend(a, b):
@@ -77,7 +93,11 @@ class JinaIndexer(Executor):
 
     @requests(on='/index')
     def index(self, docs, **kwargs):
-        self._docs.extend(docs)
+        for doc in docs:
+            doc.set_image_blob_shape(channel_axis=0, shape=(doc.blob.shape[1], doc.blob.shape[2]))
+            doc.convert_image_blob_to_uri()
+            doc.pop('blob')
+            self._docs.append(doc)
 
     @requests(on='/search')
     def query(self, docs, **kwargs):
@@ -115,39 +135,40 @@ class JinaIndexer(Executor):
         self._docs.flush()
 
 
-def _get_index_documents(root='/hdd/master/tfm/flickr30k_images',
-                         split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
-                         split='test',
+def _get_index_documents(root=DATASET_ROOT_PATH,
+                         split_root=DATASET_SPLIT_ROOT_PATH,
+                         split=DATASET_SPLIT,
                          batch_size=8):
     from src.dataset import get_image_data_loader
+    print(f'\n Indexing docs from split {split}\n')
     data_loader = get_image_data_loader(root, split_root=split_root, split=split, batch_size=batch_size, shuffle=False)
-
+    count = 0
     for filenames, images in data_loader:
         for filename, image in zip(filenames, images):
             yield Document(blob=image.numpy(), tags={'filename': filename})
+            count += 1
+            if count % 1000 == 0:
+                print(f'\n Indexed {count} docs\n')
 
 
 def index():
     f = Flow().add(uses=JinaImageEncoder,
-                   uses_with={'model_path': '/hdd/master/tfm/output_models-test/model-inter-9-final.pt'}).add(
+                   uses_with={'model_path': IMAGE_EMBEDDING_MODEL_PATH}).add(
         uses=JinaIndexer, uses_with={
-            'index_path': 'tmp/sparse_index'})
+            'index_path': INDEX_FILE_PATH})
     with f:
         f.index(_get_index_documents(), request_size=8, show_progress=True)
 
 
 def search():
     f = Flow(protocol='http', port_expose=45678).add(uses=JinaTextEncoder, uses_with={
-        'vectorizer_path': f'/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words_filtered_10.pkl'}).add(
+        'vectorizer_path': TEXT_EMBEDDING_VECTORIZER_PATH}).add(
         uses=JinaIndexer,
-        uses_with={'index_path': 'tmp/sparse_index'}).add(
-        uses=MatchConverter)
+        uses_with={'index_path': INDEX_FILE_PATH})
     with f:
         f.block()
-        #resp = f.search(Document(text='hey here boy'), return_results=True)
-        #print(f' matches {resp[0].docs[0].matches}')
 
 
 if __name__ == '__main__':
-    #index()
+    index()
     search()
