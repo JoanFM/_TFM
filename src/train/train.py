@@ -23,7 +23,7 @@ IMAGE_EMBEDDING_BASE_PATH = os.getenv('IMAGE_EMBEDDING_BASE_PATH', '/hdd/master/
 # The base directory where models where CountVectorizer are stored. Different CountVectorizers correspond to
 # different preprocessings of the corpus
 TEXT_EMBEDDING_VECTORIZER_BASE_PATH = os.getenv('TEXT_EMBEDDING_VECTORIZER_PATH',
-                                                '/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words_filtered_10.pkl')
+                                                '/hdd/master/tfm/vectorizers')
 # The root path where the flickr30k dataset is found
 DATASET_ROOT_PATH = os.getenv('DATASET_ROOT_PATH', '/hdd/master/tfm/flickr30k_images')
 # The root path where the flickr30k entities per split is kept
@@ -192,7 +192,7 @@ def analyse(image_encoder, batch_size, root, split_root, split):
     :return:
     """
     all_image_embeddings, image_filenames = extract_all_image_embeddings_and_filenames(image_encoder, batch_size, root,
-                                                                                        split_root, split)
+                                                                                       split_root, split)
     tfidf_transformer = TfidfTransformer()
     image_tfidf_index = tfidf_transformer.fit_transform(all_image_embeddings)
     analyse_index(image_tfidf_index)
@@ -217,7 +217,7 @@ def run_evaluations(image_encoder, text_encoder, batch_size, root, split_root, s
     query_batch_size = 1000
     eval_start = time.time()
     all_image_embeddings, image_filenames = extract_all_image_embeddings_and_filenames(image_encoder, batch_size, root,
-                                                                                    split_root, split)
+                                                                                       split_root, split)
 
     print(colored(f'\n Image embeddings collected in {time.time() - eval_start}s', 'black', 'on_yellow'))
 
@@ -274,6 +274,7 @@ def run_evaluations(image_encoder, text_encoder, batch_size, root, split_root, s
     print(colored(f'RESULTS of {split} EVALUATION text2Image retrieval: {t2i_evaluations}', 'black', 'on_red'))
     print(colored(f' Average number of buckets for query {np.average(num_buckets_query)}', 'black', 'on_red'))
     print(colored(f'Total run_evaluation time elapsed:\t {time.time() - eval_start}s', 'black', 'on_red'))
+    return t2i_evaluations
 
 
 def validation_loop(image_encoder, text_encoder, dataloader, device, loss_fn, training_batch_id):
@@ -375,6 +376,12 @@ def train(output_model_path: str,
     optimizer.zero_grad()
     loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
+    train_losses_epochs = []
+    val_losses_epochs = []
+    test_evals_epochs = []
+    val_evals_epochs = []
+    train_evals_epochs = []
+
     with Bar('Epochs', max=num_epochs) as epoch_bar:
 
         for epoch in range(num_epochs):
@@ -433,6 +440,21 @@ def train(output_model_path: str,
                 file_path_dump = output_model_path + '/model-inter-' + str(epoch + 1) + '-final.pt'
                 print(colored(f'\nEpoch finished in {time.time() - epoch_start} s, saving model to {file_path_dump}',
                               'green'))
+                val_loss = validation_loop(image_encoder, text_encoder, val_data_loader, device, loss_fn,
+                                           batch_id)
+                val_losses_epochs.append(np.mean(np.array(val_loss)))
+                train_losses_epochs.append(np.mean(np.array(train_loss)))
+                print(colored(
+                    f'\n[{epoch}]\tEnd of epoch validation loss:\t{np.mean(np.array(val_loss))}', 'yellow'))
+                print(colored(
+                    f'\n[{epoch}]\tEnd of epoch training loss:\t{np.mean(np.array(train_loss))}', 'yellow'))
+
+                print(colored(
+                    f'\n[{batch_id}]\tBest epoch w.r.t validation loss:\t{val_losses_epochs.index(min(val_losses_epochs))}',
+                    'yellow'))
+                print(colored(
+                    f'\n[{batch_id}]\tBest epoch w.r.t training loss:\t{train_losses_epochs.index(min(train_losses_epochs))}',
+                    'yellow'))
 
                 torch.save(image_encoder.state_dict(), file_path_dump)
 
@@ -440,20 +462,43 @@ def train(output_model_path: str,
                 pickle.dump(train_loss, f)
 
             if epoch % 1 == 0:
-                run_evaluations(image_encoder, text_encoder,
-                                batch_size, root=DATASET_ROOT_PATH,
-                                split_root=DATASET_SPLIT_ROOT_PATH,
-                                split='test')
-                run_evaluations(image_encoder, text_encoder,
-                                batch_size, root=DATASET_ROOT_PATH,
-                                split_root=DATASET_SPLIT_ROOT_PATH,
-                                split='val')
-                run_evaluations(image_encoder, text_encoder,
-                                batch_size, root=DATASET_ROOT_PATH,
-                                split_root=DATASET_SPLIT_ROOT_PATH,
-                                split='train',
-                                top_ks=[5, 10, 20])
-            epoch_bar.next()
+                test_evaluations = run_evaluations(image_encoder, text_encoder,
+                                                   batch_size, root=DATASET_ROOT_PATH,
+                                                   split_root=DATASET_SPLIT_ROOT_PATH,
+                                                   split='test')
+                test_evals_epochs.append(test_evaluations)
+
+                val_evaluations = run_evaluations(image_encoder, text_encoder,
+                                                  batch_size, root=DATASET_ROOT_PATH,
+                                                  split_root=DATASET_SPLIT_ROOT_PATH,
+                                                  split='val')
+                val_evals_epochs.append(val_evaluations)
+
+                train_evaluations = run_evaluations(image_encoder, text_encoder,
+                                                    batch_size, root=DATASET_ROOT_PATH,
+                                                    split_root=DATASET_SPLIT_ROOT_PATH,
+                                                    split='train',
+                                                    top_ks=[5, 10, 20])
+                train_evals_epochs.append(train_evaluations)
+
+            for key in test_evaluations.keys():
+                test_keys_evals_list = [d[key] for d in test_evals_epochs]
+                val_keys_evals_list = [d[key] for d in val_evals_epochs]
+                train_keys_evals_list = [d[key] for d in train_evals_epochs]
+                if len(test_keys_evals_list) > 0:
+                    print(colored(
+                        f'\n[{epoch}]\tBest epoch w.r.t evaluation {key} in test:\t{test_keys_evals_list.index(max(test_keys_evals_list))}',
+                        'yellow'))
+                if len(val_keys_evals_list):
+                    print(colored(
+                        f'\n[{epoch}]\tBest epoch w.r.t evaluation {key} in validation:\t{val_keys_evals_list.index(max(val_keys_evals_list))}',
+                        'yellow'))
+                if len(train_keys_evals_list):
+                    print(colored(
+                        f'\n[{epoch}]\tBest epoch w.r.t evaluation {key} in train:\t{train_keys_evals_list.index(max(train_keys_evals_list))}',
+                        'yellow'))
+
+        epoch_bar.next()
 
 
 if __name__ == '__main__':
