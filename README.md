@@ -123,9 +123,13 @@ INFO:     Uvicorn running on http://0.0.0.0:45678 (Press CTRL+C to quit)
 
 At this point, the Jina Flow is ready and we can start the Frontend that will connect to Jina, so let's open a different tab and run:
 
+- Note: You may want to check the configuration at `src/search_engine/frontend/config.py`
+
 ```bash
   python -m streamlit run src/search_engine/frontend/app.py
 ```
+
+
 
 You should see:
 
@@ -139,6 +143,10 @@ You should see:
 Then you can open the browser and play with the model. 
 
 You can do 2 things, enter a text, and see the results obtained, or enter one of the texts from the groundtruth provided, which will also print the expected match.
+
+![image](https://user-images.githubusercontent.com/19825685/142001136-00c5343e-0b60-4ca8-98f0-b08397708920.png)
+
+![image](https://user-images.githubusercontent.com/19825685/142001446-37d83ef3-a33c-4164-b27e-bfc75f286712.png)
 
 
 
