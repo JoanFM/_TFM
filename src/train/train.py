@@ -474,12 +474,12 @@ def train(output_model_path: str,
                                                   split='val')
                 val_evals_epochs.append(val_evaluations)
 
-                train_evaluations = run_evaluations(image_encoder, text_encoder,
-                                                    batch_size, root=DATASET_ROOT_PATH,
-                                                    split_root=DATASET_SPLIT_ROOT_PATH,
-                                                    split='train',
-                                                    top_ks=[5, 10, 20])
-                train_evals_epochs.append(train_evaluations)
+                # train_evaluations = run_evaluations(image_encoder, text_encoder,
+                #                                     batch_size, root=DATASET_ROOT_PATH,
+                #                                     split_root=DATASET_SPLIT_ROOT_PATH,
+                #                                     split='train',
+                #                                     top_ks=[5, 10, 20])
+                # train_evals_epochs.append(train_evaluations)
 
             for key in test_evaluations.keys():
                 test_keys_evals_list = [d[key] for d in test_evals_epochs]
