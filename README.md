@@ -70,7 +70,10 @@ You can also run evaluation on a single model by running the following command:
 
 ## Use the model with a frontend:
 
-In order to expose the model and play with it, some configuration must be set.
+In order to expose the model and play with it, some configuration must be set. For this purpose we use `Jina` and `Streamlit`:
+
+- https://github.com/jina-ai/jina
+- https://github.com/streamlit
 
 You can set the following `environment` variables if the default values do not fit.
 
@@ -117,4 +120,28 @@ INFO:     Uvicorn running on http://0.0.0.0:45678 (Press CTRL+C to quit)
            Flow@22946[D]:3 Pods (i.e. 3 Peas) are running in this Flow
 
 ```
+
+At this point, the Jina Flow is ready and we can start the Frontend that will connect to Jina, so let's open a different tab and run:
+
+```bash
+  python -m streamlit run src/search_engine/frontend/app.py
+```
+
+You should see:
+
+```
+  You can now view your Streamlit app in your browser.
+
+  Local URL: http://localhost:8501
+  Network URL: http://192.168.1.187:8501
+```
+
+Then you can open the browser and play with the model. 
+
+You can do 2 things, enter a text, and see the results obtained, or enter one of the texts from the groundtruth provided, which will also print the expected match.
+
+
+
+
+
 
