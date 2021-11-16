@@ -52,10 +52,69 @@ DATASET_SPLIT_ROOT_PATH = os.getenv('DATASET_SPLIT_ROOT_PATH', '/hdd/master/tfm/
 Then you can run the following command: 
 
 ```bash
-  python3.7 src/train/train.py
+  python src/train/train.py
 ```
 
 You should see logs informing about the evolution of `training` and `validation` loss. Also you should see evaluation results after each epoch.
 
+You can also run evaluation on a single model by running the following command:
+
+
+```bash
+  python src/train/train.py evaluate {SPLIT} {MODEL_PATH}
+```
+
+```bash
+  python src/train/train.py evaluate test /hdd/master/tfm/output_models-test/model-inter-9-final.pt
+```
+
 ## Use the model with a frontend:
+
+In order to expose the model and play with it, some configuration must be set.
+
+You can set the following `environment` variables if the default values do not fit.
+
+- INDEX_FILE_PATH (The path where the embedding index will be stored)
+- IMAGE_EMBEDDING_MODEL_PATH (Model to expose for indexing, the path where the state_dict of the model is stored)
+- TEXT_EMBEDDING_VECTORIZER_PATH (Text embedding model to expose for querying, the path where the CountVectorizer is stored of the model is stored)
+- DATASET_ROOT_PATH (The root path where the flickr30k dataset is found)
+- DATASET_SPLIT_ROOT_PATH (The root path where the flickr30k entities per split is kept)
+- DATASET_SPLIT (The split to use for indexing (test, val, train))
+
+```python
+# File where Jina will store the index
+INDEX_FILE_PATH = os.getenv('INDEX_FILE_PATH', 'tmp/sparse_index')
+# Model to expose for indexing, the path where the state_dict of the model is stored
+IMAGE_EMBEDDING_MODEL_PATH = os.getenv('IMAGE_EMBEDDING_MODEL_PATH', '/hdd/master/tfm/output-image-encoders/model-inter-9-final.pt')
+# Text embedding model to expose for querying, the path where the CountVectorizer is stored of the model is stored
+TEXT_EMBEDDING_VECTORIZER_PATH = os.getenv('TEXT_EMBEDDING_VECTORIZER_PATH', '/hdd/master/tfm/vectorizers/vectorizer_tokenizer_stop_words_all_words_filtered_10.pkl')
+# The root path where the flickr30k dataset is found
+DATASET_ROOT_PATH = os.getenv('DATASET_ROOT_PATH', '/hdd/master/tfm/flickr30k_images')
+# The root path where the flickr30k entities per split is kept
+DATASET_SPLIT_ROOT_PATH = os.getenv('DATASET_SPLIT_ROOT_PATH', '/hdd/master/tfm/flickr30k_images/flickr30k_entities')
+# The split to use for indexing (test, val, train)
+DATASET_SPLIT = os.getenv('DATASET_SPLIT', 'test')
+```
+
+```bash
+  python src/search_engine/jina_application.py
+```
+
+Once the indexing is done and the Query is ready to receive, you should see something like this:
+
+```
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:45678 (Press CTRL+C to quit)
+        gateway@22946[D]:ready and listening
+           Flow@22946[I]:🎉 Flow is ready to use!                                                   
+	🔗 Protocol: 		HTTP
+	🏠 Local access:	0.0.0.0:45678
+	🔒 Private network:	192.168.1.187:45678
+	🌐 Public address:	212.231.186.65:45678
+	💬 Swagger UI:		http://localhost:45678/docs
+	📚 Redoc:		http://localhost:45678/redoc
+           Flow@22946[D]:3 Pods (i.e. 3 Peas) are running in this Flow
+
+```
 
