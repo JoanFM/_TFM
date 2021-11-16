@@ -130,7 +130,6 @@ At this point, the Jina Flow is ready and we can start the Frontend that will co
 ```
 
 
-
 You should see:
 
 ```
@@ -144,12 +143,11 @@ Then you can open the browser and play with the model.
 
 You can do 2 things, enter a text, and see the results obtained, or enter one of the texts from the groundtruth provided, which will also print the expected match.
 
+![image](https://user-images.githubusercontent.com/19825685/142001792-8d770665-4985-4f85-8120-db0e84ee494a.png)
+
 ![image](https://user-images.githubusercontent.com/19825685/142001136-00c5343e-0b60-4ca8-98f0-b08397708920.png)
 
+![image](https://user-images.githubusercontent.com/19825685/142001866-0c395880-b7eb-41e6-8c0d-112b67950b92.png)
+
 ![image](https://user-images.githubusercontent.com/19825685/142001446-37d83ef3-a33c-4164-b27e-bfc75f286712.png)
-
-
-
-
-
 
