@@ -1,0 +1,1850 @@
+/home/joan/.local/lib/python3.7/site-packages/torch/cuda/__init__.py:52: UserWarning: CUDA initialization: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 804: forward compatibility was attempted on non supported HW (Triggered internally at  /pytorch/c10/cuda/CUDAFunctions.cpp:109.)
+  return torch._C._cuda_getDeviceCount() > 0
+ mean_positives 18.492361414229595, mean_negatives 3518.5076385857706, num_totals 3518.5076385857706 => positive_weights 190.2681631496955
+ sparse encoder Sequential(
+  (0): Linear(in_features=2048, out_features=4096, bias=True)
+  (1): ReLU(inplace=True)
+  (2): Linear(in_features=4096, out_features=3537, bias=True)
+)
+/home/joan/.local/lib/python3.7/site-packages/sklearn/feature_extraction/text.py:385: UserWarning: Your stop_words may be inconsistent with your preprocessing. Tokenizing the stop words generated tokens ['ca', 'far', 'make', 'nt'] not in stop_words.
+  'stop_words.' % sorted(inconsistent))
+[32m
+[0] 	 training loss:	 1.3568611145019531 	 time elapsed:	 4.565706014633179 s[0m
+[32m
+[200] 	 training loss:	 0.863384699523449 	 time elapsed:	 321.19813656806946 s[0m
+[33m
+[200]	validation loss:	0.8048403338780479	time elapsed:	97.49845671653748 s[0m
+[32m
+[400] 	 training loss:	 0.7631997615098953 	 time elapsed:	 352.9362676143646 s[0m
+[33m
+[400]	validation loss:	0.7408890563344198	time elapsed:	84.82029104232788 s[0m
+[32m
+[600] 	 training loss:	 0.7252867302298546 	 time elapsed:	 292.7288308143616 s[0m
+[33m
+[600]	validation loss:	0.7060510828381493	time elapsed:	85.91439270973206 s[0m
+[32m
+[800] 	 training loss:	 0.69593455016613 	 time elapsed:	 287.8257930278778 s[0m
+[33m
+[800]	validation loss:	0.6837447001820519	time elapsed:	85.23542737960815 s[0m
+[32m
+[1000] 	 training loss:	 0.6683902654051781 	 time elapsed:	 292.3403127193451 s[0m
+[33m
+[1000]	validation loss:	0.6656197016201322	time elapsed:	85.72666811943054 s[0m
+[32m
+[1200] 	 training loss:	 0.6641984844207763 	 time elapsed:	 287.6199173927307 s[0m
+[33m
+[1200]	validation loss:	0.653054814490061	time elapsed:	84.09225463867188 s[0m
+[32m
+[1400] 	 training loss:	 0.6549201261997223 	 time elapsed:	 286.7156391143799 s[0m
+[33m
+[1400]	validation loss:	0.641671359539032	time elapsed:	89.51528143882751 s[0m
+[32m
+[1600] 	 training loss:	 0.6411460962891579 	 time elapsed:	 288.53259921073914 s[0m
+[33m
+[1600]	validation loss:	0.6312478255657923	time elapsed:	85.03591895103455 s[0m
+[32m
+[1800] 	 training loss:	 0.6270174390077591 	 time elapsed:	 291.23818135261536 s[0m
+[33m
+[1800]	validation loss:	0.6233559279214769	time elapsed:	86.32986164093018 s[0m
+[32m
+Epoch finished in 3575.4771184921265 s, saving model to /hdd/master/tfm/output-image-encoders/model-inter-1-final.pt[0m
+[33m
+[0]	End of epoch validation loss:	0.6235796161114223[0m
+[33m
+[0]	End of epoch training loss:	0.6287949749680816[0m
+[33m
+[1861]	Best epoch w.r.t validation loss:	0[0m
+[33m
+[1861]	Best epoch w.r.t training loss:	0[0m
+[41m[30m######################################################################[0m
+[41m[30mtest EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 74.56394457817078s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.01428842544555664s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 2197 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 1340[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 193.52844788347747, std: 269.57350920448204[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 120.20978230138536, std: 232.27647259970666[0m
+[36m Average active features in images => mean: 425.182, std: 56.02680497761762[0m
+[43m[30m
+ Analysis on computed index done in 0.3030812740325928[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 40.66453957557678s[0m
+[43m[30m Evaluation computed in 8.106231689453125e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of test EVALUATION text2Image retrieval: {'recall@5': 0.3068, 'recall@10': 0.4316, 'recall@20': 0.5562, 'recall@100': 0.815, 'recall@None': 1.0, 'reciprocal_rank': 0.21609792563434627}[0m
+[41m[30m Average number of buckets for query 6.0558[0m
+[41m[30mTotal run_evaluation time elapsed:	 115.5464870929718s[0m
+[41m[30m######################################################################[0m
+[41m[30mval EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 70.35556745529175s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.013050079345703125s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 2178 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 1359[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 196.42424242424244, std: 270.26224043366483[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 120.95335029686174, std: 232.60648289398225[0m
+[36m Average active features in images => mean: 427.812, std: 58.08253314035124[0m
+[43m[30m
+ Analysis on computed index done in 0.29651618003845215[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 40.548956871032715s[0m
+[43m[30m Evaluation computed in 9.298324584960938e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of val EVALUATION text2Image retrieval: {'recall@5': 0.318, 'recall@10': 0.4332, 'recall@20': 0.55, 'recall@100': 0.8156, 'recall@None': 1.0, 'reciprocal_rank': 0.21903865480916712}[0m
+[41m[30m Average number of buckets for query 6.1174[0m
+[41m[30mTotal run_evaluation time elapsed:	 111.21471762657166s[0m
+[33m
+[0]	Best epoch w.r.t evaluation recall@5 in test:	0[0m
+[33m
+[0]	Best epoch w.r.t evaluation recall@5 in validation:	0[0m
+[33m
+[0]	Best epoch w.r.t evaluation recall@10 in test:	0[0m
+[33m
+[0]	Best epoch w.r.t evaluation recall@10 in validation:	0[0m
+[33m
+[0]	Best epoch w.r.t evaluation recall@20 in test:	0[0m
+[33m
+[0]	Best epoch w.r.t evaluation recall@20 in validation:	0[0m
+[33m
+[0]	Best epoch w.r.t evaluation recall@100 in test:	0[0m
+[33m
+[0]	Best epoch w.r.t evaluation recall@100 in validation:	0[0m
+[33m
+[0]	Best epoch w.r.t evaluation recall@None in test:	0[0m
+[33m
+[0]	Best epoch w.r.t evaluation recall@None in validation:	0[0m
+[33m
+[0]	Best epoch w.r.t evaluation reciprocal_rank in test:	0[0m
+[33m
+[0]	Best epoch w.r.t evaluation reciprocal_rank in validation:	0[0m
+[32m
+[0] 	 training loss:	 0.5784147381782532 	 time elapsed:	 2.307274103164673 s[0m
+[32m
+[200] 	 training loss:	 0.5780836598575115 	 time elapsed:	 285.331490278244 s[0m
+[33m
+[200]	validation loss:	0.6199639638264974	time elapsed:	85.62574243545532 s[0m
+[32m
+[400] 	 training loss:	 0.5828568194806576 	 time elapsed:	 284.80566930770874 s[0m
+[33m
+[400]	validation loss:	0.6166287419341859	time elapsed:	87.10197257995605 s[0m
+[32m
+[600] 	 training loss:	 0.5793032692372799 	 time elapsed:	 288.29287457466125 s[0m
+[33m
+[600]	validation loss:	0.6102532422731793	time elapsed:	84.03268647193909 s[0m
+[32m
+[800] 	 training loss:	 0.5774915197491646 	 time elapsed:	 287.71617698669434 s[0m
+[33m
+[800]	validation loss:	0.6076292107029567	time elapsed:	85.70644569396973 s[0m
+[32m
+[1000] 	 training loss:	 0.5816057804226875 	 time elapsed:	 287.85368180274963 s[0m
+[33m
+[1000]	validation loss:	0.6048141471923344	time elapsed:	87.49777913093567 s[0m
+[32m
+[1200] 	 training loss:	 0.580527468919754 	 time elapsed:	 284.14100098609924 s[0m
+[33m
+[1200]	validation loss:	0.6013054535502479	time elapsed:	85.06191325187683 s[0m
+[32m
+[1400] 	 training loss:	 0.5723389095067978 	 time elapsed:	 288.00532746315 s[0m
+[33m
+[1400]	validation loss:	0.5958305176288362	time elapsed:	85.66122031211853 s[0m
+[32m
+[1600] 	 training loss:	 0.5679195925593377 	 time elapsed:	 287.56653666496277 s[0m
+[33m
+[1600]	validation loss:	0.5951937853343903	time elapsed:	84.48485708236694 s[0m
+[32m
+[1800] 	 training loss:	 0.5714805047214031 	 time elapsed:	 286.21279406547546 s[0m
+[33m
+[1800]	validation loss:	0.5926430996448274	time elapsed:	89.73301243782043 s[0m
+[32m
+Epoch finished in 3443.709398508072 s, saving model to /hdd/master/tfm/output-image-encoders/model-inter-2-final.pt[0m
+[33m
+[1]	End of epoch validation loss:	0.592731603554317[0m
+[33m
+[1]	End of epoch training loss:	0.5716763407480522[0m
+[33m
+[1861]	Best epoch w.r.t validation loss:	1[0m
+[33m
+[1861]	Best epoch w.r.t training loss:	1[0m
+[41m[30m######################################################################[0m
+[41m[30mtest EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 72.58782815933228s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.012827396392822266s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 2709 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 828[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 151.18678479143594, std: 242.66062407054469[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 115.79445858071813, std: 221.80582122032578[0m
+[36m Average active features in images => mean: 409.565, std: 57.50328490616862[0m
+[43m[30m
+ Analysis on computed index done in 0.30252766609191895[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 41.056042432785034s[0m
+[43m[30m Evaluation computed in 9.5367431640625e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of test EVALUATION text2Image retrieval: {'recall@5': 0.3794, 'recall@10': 0.5014, 'recall@20': 0.628, 'recall@100': 0.8592, 'recall@None': 1.0, 'reciprocal_rank': 0.26197114389089243}[0m
+[41m[30m Average number of buckets for query 6.0558[0m
+[41m[30mTotal run_evaluation time elapsed:	 113.95985746383667s[0m
+[41m[30m######################################################################[0m
+[41m[30mval EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 71.48660182952881s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.013197660446166992s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 2690 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 847[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 152.87360594795538, std: 243.13777744333078[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 116.26519649420413, std: 221.8464545057797[0m
+[36m Average active features in images => mean: 411.23, std: 58.31904577408653[0m
+[43m[30m
+ Analysis on computed index done in 0.2976360321044922[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 41.14894723892212s[0m
+[43m[30m Evaluation computed in 9.775161743164062e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of val EVALUATION text2Image retrieval: {'recall@5': 0.3726, 'recall@10': 0.4874, 'recall@20': 0.6138, 'recall@100': 0.861, 'recall@None': 1.0, 'reciprocal_rank': 0.2590935821337777}[0m
+[41m[30m Average number of buckets for query 6.1174[0m
+[41m[30mTotal run_evaluation time elapsed:	 112.94701814651489s[0m
+[33m
+[1]	Best epoch w.r.t evaluation recall@5 in test:	1[0m
+[33m
+[1]	Best epoch w.r.t evaluation recall@5 in validation:	1[0m
+[33m
+[1]	Best epoch w.r.t evaluation recall@10 in test:	1[0m
+[33m
+[1]	Best epoch w.r.t evaluation recall@10 in validation:	1[0m
+[33m
+[1]	Best epoch w.r.t evaluation recall@20 in test:	1[0m
+[33m
+[1]	Best epoch w.r.t evaluation recall@20 in validation:	1[0m
+[33m
+[1]	Best epoch w.r.t evaluation recall@100 in test:	1[0m
+[33m
+[1]	Best epoch w.r.t evaluation recall@100 in validation:	1[0m
+[33m
+[1]	Best epoch w.r.t evaluation recall@None in test:	0[0m
+[33m
+[1]	Best epoch w.r.t evaluation recall@None in validation:	0[0m
+[33m
+[1]	Best epoch w.r.t evaluation reciprocal_rank in test:	1[0m
+[33m
+[1]	Best epoch w.r.t evaluation reciprocal_rank in validation:	1[0m
+[32m
+[0] 	 training loss:	 0.5551749467849731 	 time elapsed:	 2.3098456859588623 s[0m
+[32m
+[200] 	 training loss:	 0.5145784364640713 	 time elapsed:	 281.45006370544434 s[0m
+[33m
+[200]	validation loss:	0.5949722694026099	time elapsed:	84.19329690933228 s[0m
+[32m
+[400] 	 training loss:	 0.5222402359545231 	 time elapsed:	 290.0867192745209 s[0m
+[33m
+[400]	validation loss:	0.5915379335009863	time elapsed:	84.20215153694153 s[0m
+[32m
+[600] 	 training loss:	 0.5284558039903641 	 time elapsed:	 286.70798921585083 s[0m
+[33m
+[600]	validation loss:	0.5898972394920531	time elapsed:	85.41100764274597 s[0m
+[32m
+[800] 	 training loss:	 0.526655003875494 	 time elapsed:	 287.59343123435974 s[0m
+[33m
+[800]	validation loss:	0.5859006132398333	time elapsed:	86.58187484741211 s[0m
+[32m
+[1000] 	 training loss:	 0.5276750586926937 	 time elapsed:	 285.1380250453949 s[0m
+[33m
+[1000]	validation loss:	0.5868388561029283	time elapsed:	85.71596646308899 s[0m
+[32m
+[1200] 	 training loss:	 0.5263553200662137 	 time elapsed:	 286.48100304603577 s[0m
+[33m
+[1200]	validation loss:	0.5845737026797401	time elapsed:	84.13830232620239 s[0m
+[32m
+[1400] 	 training loss:	 0.5226275104284287 	 time elapsed:	 288.22648787498474 s[0m
+[33m
+[1400]	validation loss:	0.5851081581342787	time elapsed:	86.07184886932373 s[0m
+[32m
+[1600] 	 training loss:	 0.5302076251804828 	 time elapsed:	 286.14303493499756 s[0m
+[33m
+[1600]	validation loss:	0.5847197444665999	time elapsed:	85.89054989814758 s[0m
+[32m
+[1800] 	 training loss:	 0.5329066367447376 	 time elapsed:	 289.134006023407 s[0m
+[33m
+[1800]	validation loss:	0.5816259743675353	time elapsed:	84.90767526626587 s[0m
+[32m
+Epoch finished in 3437.925018787384 s, saving model to /hdd/master/tfm/output-image-encoders/model-inter-3-final.pt[0m
+[33m
+[2]	End of epoch validation loss:	0.5817711764857882[0m
+[33m
+[2]	End of epoch training loss:	0.5217258314617345[0m
+[33m
+[1861]	Best epoch w.r.t validation loss:	2[0m
+[33m
+[1861]	Best epoch w.r.t training loss:	2[0m
+[41m[30m######################################################################[0m
+[41m[30mtest EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 70.68931245803833s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.012794017791748047s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 2982 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 555[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 130.74312541918175, std: 220.70928832077595[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 110.22787673169353, std: 208.15936507834633[0m
+[36m Average active features in images => mean: 389.876, std: 58.78648334438793[0m
+[43m[30m
+ Analysis on computed index done in 0.2955284118652344[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 40.41720128059387s[0m
+[43m[30m Evaluation computed in 7.62939453125e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of test EVALUATION text2Image retrieval: {'recall@5': 0.3972, 'recall@10': 0.5274, 'recall@20': 0.6498, 'recall@100': 0.878, 'recall@None': 1.0, 'reciprocal_rank': 0.2746543939538892}[0m
+[41m[30m Average number of buckets for query 6.0558[0m
+[41m[30mTotal run_evaluation time elapsed:	 111.41546607017517s[0m
+[41m[30m######################################################################[0m
+[41m[30mval EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 70.69290733337402s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.012251138687133789s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 2973 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 564[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 132.05919946182308, std: 221.52186185069505[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 111.00141362736782, std: 208.769029049394[0m
+[36m Average active features in images => mean: 392.612, std: 60.491135350561905[0m
+[43m[30m
+ Analysis on computed index done in 0.2947385311126709[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 40.717212200164795s[0m
+[43m[30m Evaluation computed in 7.3909759521484375e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of val EVALUATION text2Image retrieval: {'recall@5': 0.398, 'recall@10': 0.5186, 'recall@20': 0.6394, 'recall@100': 0.8742, 'recall@None': 1.0, 'reciprocal_rank': 0.2755276066762589}[0m
+[41m[30m Average number of buckets for query 6.1174[0m
+[41m[30mTotal run_evaluation time elapsed:	 111.71773600578308s[0m
+[33m
+[2]	Best epoch w.r.t evaluation recall@5 in test:	2[0m
+[33m
+[2]	Best epoch w.r.t evaluation recall@5 in validation:	2[0m
+[33m
+[2]	Best epoch w.r.t evaluation recall@10 in test:	2[0m
+[33m
+[2]	Best epoch w.r.t evaluation recall@10 in validation:	2[0m
+[33m
+[2]	Best epoch w.r.t evaluation recall@20 in test:	2[0m
+[33m
+[2]	Best epoch w.r.t evaluation recall@20 in validation:	2[0m
+[33m
+[2]	Best epoch w.r.t evaluation recall@100 in test:	2[0m
+[33m
+[2]	Best epoch w.r.t evaluation recall@100 in validation:	2[0m
+[33m
+[2]	Best epoch w.r.t evaluation recall@None in test:	0[0m
+[33m
+[2]	Best epoch w.r.t evaluation recall@None in validation:	0[0m
+[33m
+[2]	Best epoch w.r.t evaluation reciprocal_rank in test:	2[0m
+[33m
+[2]	Best epoch w.r.t evaluation reciprocal_rank in validation:	2[0m
+[32m
+[0] 	 training loss:	 0.40033209323883057 	 time elapsed:	 2.3794424533843994 s[0m
+[32m
+[200] 	 training loss:	 0.47826636642217635 	 time elapsed:	 286.95760011672974 s[0m
+[33m
+[200]	validation loss:	0.5874332643690563	time elapsed:	86.85144376754761 s[0m
+[32m
+[400] 	 training loss:	 0.47863531202077864 	 time elapsed:	 283.89079093933105 s[0m
+[33m
+[400]	validation loss:	0.5845942189769139	time elapsed:	85.99575161933899 s[0m
+[32m
+[600] 	 training loss:	 0.48910538479685783 	 time elapsed:	 285.31567645072937 s[0m
+[33m
+[600]	validation loss:	0.5831487074730888	time elapsed:	85.68961429595947 s[0m
+[32m
+[800] 	 training loss:	 0.4829720076918602 	 time elapsed:	 288.6242492198944 s[0m
+[33m
+[800]	validation loss:	0.5867622348051222	time elapsed:	85.30629181861877 s[0m
+[32m
+[1000] 	 training loss:	 0.48774173349142075 	 time elapsed:	 287.70128059387207 s[0m
+[33m
+[1000]	validation loss:	0.5838031721493554	time elapsed:	85.93461537361145 s[0m
+[32m
+[1200] 	 training loss:	 0.4883880117535591 	 time elapsed:	 289.5696711540222 s[0m
+[33m
+[1200]	validation loss:	0.5808766574140579	time elapsed:	87.31777024269104 s[0m
+[32m
+[1400] 	 training loss:	 0.4869078341126442 	 time elapsed:	 284.193883895874 s[0m
+[33m
+[1400]	validation loss:	0.5851918283909087	time elapsed:	86.5791289806366 s[0m
+[32m
+[1600] 	 training loss:	 0.49268719375133513 	 time elapsed:	 285.0462145805359 s[0m
+[33m
+[1600]	validation loss:	0.583342337892169	time elapsed:	84.61137413978577 s[0m
+[32m
+[1800] 	 training loss:	 0.4923938941955566 	 time elapsed:	 291.4092903137207 s[0m
+[33m
+[1800]	validation loss:	0.57827427983284	time elapsed:	84.66083574295044 s[0m
+[32m
+Epoch finished in 3444.0810112953186 s, saving model to /hdd/master/tfm/output-image-encoders/model-inter-4-final.pt[0m
+[33m
+[3]	End of epoch validation loss:	0.5799588229921129[0m
+[33m
+[3]	End of epoch training loss:	0.49428133446662154[0m
+[33m
+[1861]	Best epoch w.r.t validation loss:	3[0m
+[33m
+[1861]	Best epoch w.r.t training loss:	3[0m
+[41m[30m######################################################################[0m
+[41m[30mtest EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 75.31341767311096s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.012175798416137695s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3157 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 380[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 118.92777953753564, std: 207.796054724621[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 106.15069267741023, std: 199.74110801043096[0m
+[36m Average active features in images => mean: 375.455, std: 57.605936977016526[0m
+[43m[30m
+ Analysis on computed index done in 0.2946150302886963[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 40.64657735824585s[0m
+[43m[30m Evaluation computed in 7.62939453125e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of test EVALUATION text2Image retrieval: {'recall@5': 0.4262, 'recall@10': 0.555, 'recall@20': 0.6744, 'recall@100': 0.89, 'recall@None': 1.0, 'reciprocal_rank': 0.3000523737396017}[0m
+[41m[30m Average number of buckets for query 6.0558[0m
+[41m[30mTotal run_evaluation time elapsed:	 116.26743030548096s[0m
+[41m[30m######################################################################[0m
+[41m[30mval EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 69.49644112586975s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.012511730194091797s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3173 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 364[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 118.72265994327135, std: 207.45562136979908[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 106.50466497031383, std: 199.7748620955896[0m
+[36m Average active features in images => mean: 376.707, std: 59.687043409771945[0m
+[43m[30m
+ Analysis on computed index done in 0.28817129135131836[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 41.09926891326904s[0m
+[43m[30m Evaluation computed in 7.62939453125e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of val EVALUATION text2Image retrieval: {'recall@5': 0.4182, 'recall@10': 0.5412, 'recall@20': 0.6574, 'recall@100': 0.883, 'recall@None': 1.0, 'reciprocal_rank': 0.2901323846745318}[0m
+[41m[30m Average number of buckets for query 6.1174[0m
+[41m[30mTotal run_evaluation time elapsed:	 110.89702463150024s[0m
+[33m
+[3]	Best epoch w.r.t evaluation recall@5 in test:	3[0m
+[33m
+[3]	Best epoch w.r.t evaluation recall@5 in validation:	3[0m
+[33m
+[3]	Best epoch w.r.t evaluation recall@10 in test:	3[0m
+[33m
+[3]	Best epoch w.r.t evaluation recall@10 in validation:	3[0m
+[33m
+[3]	Best epoch w.r.t evaluation recall@20 in test:	3[0m
+[33m
+[3]	Best epoch w.r.t evaluation recall@20 in validation:	3[0m
+[33m
+[3]	Best epoch w.r.t evaluation recall@100 in test:	3[0m
+[33m
+[3]	Best epoch w.r.t evaluation recall@100 in validation:	3[0m
+[33m
+[3]	Best epoch w.r.t evaluation recall@None in test:	0[0m
+[33m
+[3]	Best epoch w.r.t evaluation recall@None in validation:	0[0m
+[33m
+[3]	Best epoch w.r.t evaluation reciprocal_rank in test:	3[0m
+[33m
+[3]	Best epoch w.r.t evaluation reciprocal_rank in validation:	3[0m
+[32m
+[0] 	 training loss:	 0.5162960290908813 	 time elapsed:	 2.3914201259613037 s[0m
+[32m
+[200] 	 training loss:	 0.4410526804625988 	 time elapsed:	 285.9363384246826 s[0m
+[33m
+[200]	validation loss:	0.5847086509068807	time elapsed:	86.59960889816284 s[0m
+[32m
+[400] 	 training loss:	 0.4435469570755959 	 time elapsed:	 284.42710852622986 s[0m
+[33m
+[400]	validation loss:	0.5861966037561023	time elapsed:	85.4217631816864 s[0m
+[32m
+[600] 	 training loss:	 0.4512274149060249 	 time elapsed:	 286.42868208885193 s[0m
+[33m
+[600]	validation loss:	0.5877607758083041	time elapsed:	86.0547878742218 s[0m
+[32m
+[800] 	 training loss:	 0.450560190230608 	 time elapsed:	 289.36130571365356 s[0m
+[33m
+[800]	validation loss:	0.5881565582184565	time elapsed:	83.29435920715332 s[0m
+[32m
+[1000] 	 training loss:	 0.4539377935230732 	 time elapsed:	 284.8146526813507 s[0m
+[33m
+[1000]	validation loss:	0.5875881654875619	time elapsed:	86.43959999084473 s[0m
+[32m
+[1200] 	 training loss:	 0.453588402569294 	 time elapsed:	 286.35397386550903 s[0m
+[33m
+[1200]	validation loss:	0.5876951179807148	time elapsed:	86.4643166065216 s[0m
+[32m
+[1400] 	 training loss:	 0.4569643050432205 	 time elapsed:	 285.65699911117554 s[0m
+[33m
+[1400]	validation loss:	0.5851813989972311	time elapsed:	84.04448914527893 s[0m
+[32m
+[1600] 	 training loss:	 0.4574556052684784 	 time elapsed:	 290.4900641441345 s[0m
+[33m
+[1600]	validation loss:	0.5831242232095628	time elapsed:	85.050213098526 s[0m
+[32m
+[1800] 	 training loss:	 0.46228501811623574 	 time elapsed:	 285.2965853214264 s[0m
+[33m
+[1800]	validation loss:	0.5795366570116982	time elapsed:	88.38958311080933 s[0m
+[32m
+Epoch finished in 3438.102807998657 s, saving model to /hdd/master/tfm/output-image-encoders/model-inter-5-final.pt[0m
+[33m
+[4]	End of epoch validation loss:	0.5860233481914278[0m
+[33m
+[4]	End of epoch training loss:	0.4481835844086819[0m
+[33m
+[1861]	Best epoch w.r.t validation loss:	3[0m
+[33m
+[1861]	Best epoch w.r.t training loss:	4[0m
+[41m[30m######################################################################[0m
+[41m[30mtest EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 74.65538454055786s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.011287927627563477s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3210 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 327[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 110.17507788161994, std: 201.4969705996085[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 99.98925643200452, std: 194.59158973189545[0m
+[36m Average active features in images => mean: 353.662, std: 54.356690075831516[0m
+[43m[30m
+ Analysis on computed index done in 0.28344202041625977[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 40.06624984741211s[0m
+[43m[30m Evaluation computed in 7.3909759521484375e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of test EVALUATION text2Image retrieval: {'recall@5': 0.439, 'recall@10': 0.5652, 'recall@20': 0.6828, 'recall@100': 0.8918, 'recall@None': 1.0, 'reciprocal_rank': 0.3116898940069817}[0m
+[41m[30m Average number of buckets for query 6.0558[0m
+[41m[30mTotal run_evaluation time elapsed:	 115.01700234413147s[0m
+[41m[30m######################################################################[0m
+[41m[30mval EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 72.4490704536438s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.01130223274230957s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3213 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 324[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 110.38530967942732, std: 201.45029173324042[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 100.27367825841108, std: 194.62449805818602[0m
+[36m Average active features in images => mean: 354.668, std: 56.017066827887376[0m
+[43m[30m
+ Analysis on computed index done in 0.27559375762939453[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 40.1960608959198s[0m
+[43m[30m Evaluation computed in 7.3909759521484375e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of val EVALUATION text2Image retrieval: {'recall@5': 0.4242, 'recall@10': 0.5486, 'recall@20': 0.6668, 'recall@100': 0.8878, 'recall@None': 1.0, 'reciprocal_rank': 0.29867094408767264}[0m
+[41m[30m Average number of buckets for query 6.1174[0m
+[41m[30mTotal run_evaluation time elapsed:	 112.93264961242676s[0m
+[33m
+[4]	Best epoch w.r.t evaluation recall@5 in test:	4[0m
+[33m
+[4]	Best epoch w.r.t evaluation recall@5 in validation:	4[0m
+[33m
+[4]	Best epoch w.r.t evaluation recall@10 in test:	4[0m
+[33m
+[4]	Best epoch w.r.t evaluation recall@10 in validation:	4[0m
+[33m
+[4]	Best epoch w.r.t evaluation recall@20 in test:	4[0m
+[33m
+[4]	Best epoch w.r.t evaluation recall@20 in validation:	4[0m
+[33m
+[4]	Best epoch w.r.t evaluation recall@100 in test:	4[0m
+[33m
+[4]	Best epoch w.r.t evaluation recall@100 in validation:	4[0m
+[33m
+[4]	Best epoch w.r.t evaluation recall@None in test:	0[0m
+[33m
+[4]	Best epoch w.r.t evaluation recall@None in validation:	0[0m
+[33m
+[4]	Best epoch w.r.t evaluation reciprocal_rank in test:	4[0m
+[33m
+[4]	Best epoch w.r.t evaluation reciprocal_rank in validation:	4[0m
+[32m
+[0] 	 training loss:	 0.4102632701396942 	 time elapsed:	 2.348140001296997 s[0m
+[32m
+[200] 	 training loss:	 0.4091038426756859 	 time elapsed:	 284.91480469703674 s[0m
+[33m
+[200]	validation loss:	0.5921172598997752	time elapsed:	86.60625529289246 s[0m
+[32m
+[400] 	 training loss:	 0.40780310332775116 	 time elapsed:	 288.78704285621643 s[0m
+[33m
+[400]	validation loss:	0.5951211509250459	time elapsed:	84.46264219284058 s[0m
+[32m
+[600] 	 training loss:	 0.41458498626947404 	 time elapsed:	 289.65760922431946 s[0m
+[33m
+[600]	validation loss:	0.5924420172259921	time elapsed:	85.79794120788574 s[0m
+[32m
+[800] 	 training loss:	 0.41776837468147276 	 time elapsed:	 285.59937047958374 s[0m
+[33m
+[800]	validation loss:	0.5924775576780713	time elapsed:	86.32711863517761 s[0m
+[32m
+[1000] 	 training loss:	 0.4256353083252907 	 time elapsed:	 284.80579018592834 s[0m
+[33m
+[1000]	validation loss:	0.5872307925943344	time elapsed:	90.17498469352722 s[0m
+[32m
+[1200] 	 training loss:	 0.4236409966647625 	 time elapsed:	 287.43480157852173 s[0m
+[33m
+[1200]	validation loss:	0.5965880278557066	time elapsed:	85.82159757614136 s[0m
+[32m
+[1400] 	 training loss:	 0.4256779646873474 	 time elapsed:	 291.85085248947144 s[0m
+[33m
+[1400]	validation loss:	0.5937889284557767	time elapsed:	84.92192196846008 s[0m
+[32m
+[1600] 	 training loss:	 0.4285978564620018 	 time elapsed:	 291.68168687820435 s[0m
+[33m
+[1600]	validation loss:	0.5895187580396258	time elapsed:	87.50079083442688 s[0m
+[32m
+[1800] 	 training loss:	 0.43058094173669814 	 time elapsed:	 284.4415051937103 s[0m
+[33m
+[1800]	validation loss:	0.5901783217513372	time elapsed:	87.61393332481384 s[0m
+[32m
+Epoch finished in 3457.797042608261 s, saving model to /hdd/master/tfm/output-image-encoders/model-inter-6-final.pt[0m
+[33m
+[5]	End of epoch validation loss:	0.591275803153477[0m
+[33m
+[5]	End of epoch training loss:	0.42228958059529786[0m
+[33m
+[1861]	Best epoch w.r.t validation loss:	3[0m
+[33m
+[1861]	Best epoch w.r.t training loss:	5[0m
+[41m[30m######################################################################[0m
+[41m[30mtest EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 70.00520372390747s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.011718988418579102s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3318 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 219[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 101.64376130198914, std: 189.54301259722044[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 95.35029686174724, std: 185.2084697410896[0m
+[36m Average active features in images => mean: 337.254, std: 52.69688305772933[0m
+[43m[30m
+ Analysis on computed index done in 0.29645466804504395[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 41.5591402053833s[0m
+[43m[30m Evaluation computed in 8.344650268554688e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of test EVALUATION text2Image retrieval: {'recall@5': 0.4444, 'recall@10': 0.57, 'recall@20': 0.6888, 'recall@100': 0.8922, 'recall@None': 1.0, 'reciprocal_rank': 0.31262722869023657}[0m
+[41m[30m Average number of buckets for query 6.0558[0m
+[41m[30mTotal run_evaluation time elapsed:	 111.87322211265564s[0m
+[41m[30m######################################################################[0m
+[41m[30mval EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 71.20725536346436s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.011231422424316406s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3315 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 222[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 102.0238310708899, std: 189.68816922437185[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 95.62029968900198, std: 185.29846715202353[0m
+[36m Average active features in images => mean: 338.209, std: 54.85596885481105[0m
+[43m[30m
+ Analysis on computed index done in 0.2795274257659912[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 41.328242778778076s[0m
+[43m[30m Evaluation computed in 8.344650268554688e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of val EVALUATION text2Image retrieval: {'recall@5': 0.442, 'recall@10': 0.5606, 'recall@20': 0.6734, 'recall@100': 0.8866, 'recall@None': 1.0, 'reciprocal_rank': 0.30624401540497204}[0m
+[41m[30m Average number of buckets for query 6.1174[0m
+[41m[30mTotal run_evaluation time elapsed:	 112.82690119743347s[0m
+[33m
+[5]	Best epoch w.r.t evaluation recall@5 in test:	5[0m
+[33m
+[5]	Best epoch w.r.t evaluation recall@5 in validation:	5[0m
+[33m
+[5]	Best epoch w.r.t evaluation recall@10 in test:	5[0m
+[33m
+[5]	Best epoch w.r.t evaluation recall@10 in validation:	5[0m
+[33m
+[5]	Best epoch w.r.t evaluation recall@20 in test:	5[0m
+[33m
+[5]	Best epoch w.r.t evaluation recall@20 in validation:	5[0m
+[33m
+[5]	Best epoch w.r.t evaluation recall@100 in test:	5[0m
+[33m
+[5]	Best epoch w.r.t evaluation recall@100 in validation:	4[0m
+[33m
+[5]	Best epoch w.r.t evaluation recall@None in test:	0[0m
+[33m
+[5]	Best epoch w.r.t evaluation recall@None in validation:	0[0m
+[33m
+[5]	Best epoch w.r.t evaluation reciprocal_rank in test:	5[0m
+[33m
+[5]	Best epoch w.r.t evaluation reciprocal_rank in validation:	5[0m
+[32m
+[0] 	 training loss:	 0.4005432426929474 	 time elapsed:	 2.353116750717163 s[0m
+[32m
+[200] 	 training loss:	 0.3774038116633892 	 time elapsed:	 282.849506855011 s[0m
+[33m
+[200]	validation loss:	0.6006976895862155	time elapsed:	84.2953553199768 s[0m
+[32m
+[400] 	 training loss:	 0.3852624806761742 	 time elapsed:	 286.33355140686035 s[0m
+[33m
+[400]	validation loss:	0.6055613652108207	time elapsed:	86.15535616874695 s[0m
+[32m
+[600] 	 training loss:	 0.3845658779144287 	 time elapsed:	 285.35206365585327 s[0m
+[33m
+[600]	validation loss:	0.6044090007032666	time elapsed:	86.71677851676941 s[0m
+[32m
+[800] 	 training loss:	 0.39439017057418824 	 time elapsed:	 284.2693769931793 s[0m
+[33m
+[800]	validation loss:	0.603435571704592	time elapsed:	86.38904094696045 s[0m
+[32m
+[1000] 	 training loss:	 0.38788502410054204 	 time elapsed:	 289.61430764198303 s[0m
+[33m
+[1000]	validation loss:	0.6037161615159776	time elapsed:	85.31154537200928 s[0m
+[32m
+[1200] 	 training loss:	 0.39137748524546623 	 time elapsed:	 285.6349079608917 s[0m
+[33m
+[1200]	validation loss:	0.6079192048027402	time elapsed:	86.04637908935547 s[0m
+[32m
+[1400] 	 training loss:	 0.400018962174654 	 time elapsed:	 284.42615938186646 s[0m
+[33m
+[1400]	validation loss:	0.6015280683835348	time elapsed:	88.82117080688477 s[0m
+[32m
+[1600] 	 training loss:	 0.3993293564021587 	 time elapsed:	 284.1355023384094 s[0m
+[33m
+[1600]	validation loss:	0.6039876034335484	time elapsed:	85.32717394828796 s[0m
+[32m
+[1800] 	 training loss:	 0.3975649751722813 	 time elapsed:	 286.4022674560547 s[0m
+[33m
+[1800]	validation loss:	0.6044416455995469	time elapsed:	82.91955876350403 s[0m
+[32m
+Epoch finished in 3428.255594968796 s, saving model to /hdd/master/tfm/output-image-encoders/model-inter-7-final.pt[0m
+[33m
+[6]	End of epoch validation loss:	0.6048113353668697[0m
+[33m
+[6]	End of epoch training loss:	0.39766993581271565[0m
+[33m
+[1861]	Best epoch w.r.t validation loss:	3[0m
+[33m
+[1861]	Best epoch w.r.t training loss:	6[0m
+[41m[30m######################################################################[0m
+[41m[30mtest EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 74.46191740036011s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.011230945587158203s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3349 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 188[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 98.84443117348462, std: 186.12896182371358[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 93.59061351427763, std: 182.46722333262417[0m
+[36m Average active features in images => mean: 331.03, std: 51.09868002209059[0m
+[43m[30m
+ Analysis on computed index done in 0.28107333183288574[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 41.00712609291077s[0m
+[43m[30m Evaluation computed in 8.106231689453125e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of test EVALUATION text2Image retrieval: {'recall@5': 0.449, 'recall@10': 0.5746, 'recall@20': 0.693, 'recall@100': 0.8962, 'recall@None': 1.0, 'reciprocal_rank': 0.3205504077246187}[0m
+[41m[30m Average number of buckets for query 6.0558[0m
+[41m[30mTotal run_evaluation time elapsed:	 115.76197123527527s[0m
+[41m[30m######################################################################[0m
+[41m[30mval EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 70.23160028457642s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.011541604995727539s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3342 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 195[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 99.42070616397366, std: 186.33207366896826[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 93.93949674865705, std: 182.53876010434314[0m
+[36m Average active features in images => mean: 332.264, std: 52.81293689996798[0m
+[43m[30m
+ Analysis on computed index done in 0.28098249435424805[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 41.50748062133789s[0m
+[43m[30m Evaluation computed in 7.867813110351562e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of val EVALUATION text2Image retrieval: {'recall@5': 0.4426, 'recall@10': 0.5658, 'recall@20': 0.6756, 'recall@100': 0.8886, 'recall@None': 1.0, 'reciprocal_rank': 0.31115006273714363}[0m
+[41m[30m Average number of buckets for query 6.1174[0m
+[41m[30mTotal run_evaluation time elapsed:	 112.03224468231201s[0m
+[33m
+[6]	Best epoch w.r.t evaluation recall@5 in test:	6[0m
+[33m
+[6]	Best epoch w.r.t evaluation recall@5 in validation:	6[0m
+[33m
+[6]	Best epoch w.r.t evaluation recall@10 in test:	6[0m
+[33m
+[6]	Best epoch w.r.t evaluation recall@10 in validation:	6[0m
+[33m
+[6]	Best epoch w.r.t evaluation recall@20 in test:	6[0m
+[33m
+[6]	Best epoch w.r.t evaluation recall@20 in validation:	6[0m
+[33m
+[6]	Best epoch w.r.t evaluation recall@100 in test:	6[0m
+[33m
+[6]	Best epoch w.r.t evaluation recall@100 in validation:	6[0m
+[33m
+[6]	Best epoch w.r.t evaluation recall@None in test:	0[0m
+[33m
+[6]	Best epoch w.r.t evaluation recall@None in validation:	0[0m
+[33m
+[6]	Best epoch w.r.t evaluation reciprocal_rank in test:	6[0m
+[33m
+[6]	Best epoch w.r.t evaluation reciprocal_rank in validation:	6[0m
+[32m
+[0] 	 training loss:	 0.3356015682220459 	 time elapsed:	 2.312086582183838 s[0m
+[32m
+[200] 	 training loss:	 0.34750131130218503 	 time elapsed:	 284.2272562980652 s[0m
+[33m
+[200]	validation loss:	0.6274004138651348	time elapsed:	87.00987339019775 s[0m
+[32m
+[400] 	 training loss:	 0.35489635944366454 	 time elapsed:	 284.6196563243866 s[0m
+[33m
+[400]	validation loss:	0.6205385005663312	time elapsed:	86.84026908874512 s[0m
+[32m
+[600] 	 training loss:	 0.3605588176846504 	 time elapsed:	 286.1421847343445 s[0m
+[33m
+[600]	validation loss:	0.6245710154374441	time elapsed:	84.75952243804932 s[0m
+[32m
+[800] 	 training loss:	 0.36284079641103745 	 time elapsed:	 287.6755917072296 s[0m
+[33m
+[800]	validation loss:	0.6230277925256699	time elapsed:	84.64831256866455 s[0m
+[32m
+[1000] 	 training loss:	 0.3626673105359077 	 time elapsed:	 287.1126730442047 s[0m
+[33m
+[1000]	validation loss:	0.6238788654879918	time elapsed:	85.20285201072693 s[0m
+[32m
+[1200] 	 training loss:	 0.3668771313130856 	 time elapsed:	 284.29238867759705 s[0m
+[33m
+[1200]	validation loss:	0.6199694564418187	time elapsed:	86.55519556999207 s[0m
+[32m
+[1400] 	 training loss:	 0.36814513474702837 	 time elapsed:	 286.86416602134705 s[0m
+[33m
+[1400]	validation loss:	0.620078641743887	time elapsed:	86.0080304145813 s[0m
+[32m
+[1600] 	 training loss:	 0.37503796696662905 	 time elapsed:	 287.05711460113525 s[0m
+[33m
+[1600]	validation loss:	0.6184192578943949	time elapsed:	83.8653450012207 s[0m
+[32m
+[1800] 	 training loss:	 0.37401735424995425 	 time elapsed:	 287.75244402885437 s[0m
+[33m
+[1800]	validation loss:	0.6155836932242863	time elapsed:	86.44515681266785 s[0m
+[32m
+Epoch finished in 3435.6662023067474 s, saving model to /hdd/master/tfm/output-image-encoders/model-inter-8-final.pt[0m
+[33m
+[7]	End of epoch validation loss:	0.617777389193338[0m
+[33m
+[7]	End of epoch training loss:	0.37465060832070524[0m
+[33m
+[1861]	Best epoch w.r.t validation loss:	3[0m
+[33m
+[1861]	Best epoch w.r.t training loss:	7[0m
+[41m[30m######################################################################[0m
+[41m[30mtest EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 72.97311305999756s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.010598897933959961s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3372 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 165[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 94.83451957295374, std: 183.24581567558437[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 90.41051738761662, std: 180.03486761273203[0m
+[36m Average active features in images => mean: 319.782, std: 51.552715505587095[0m
+[43m[30m
+ Analysis on computed index done in 0.2743856906890869[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 40.378705978393555s[0m
+[43m[30m Evaluation computed in 8.106231689453125e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of test EVALUATION text2Image retrieval: {'recall@5': 0.4546, 'recall@10': 0.5812, 'recall@20': 0.7024, 'recall@100': 0.8978, 'recall@None': 1.0, 'reciprocal_rank': 0.324265075492794}[0m
+[41m[30m Average number of buckets for query 6.0558[0m
+[41m[30mTotal run_evaluation time elapsed:	 113.6374261379242s[0m
+[41m[30m######################################################################[0m
+[41m[30mval EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 72.00975489616394s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.011452198028564453s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3357 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 180[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 95.67470956210903, std: 183.7424201657774[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 90.80576759966073, std: 180.23671611868247[0m
+[36m Average active features in images => mean: 321.18, std: 53.043732900315376[0m
+[43m[30m
+ Analysis on computed index done in 0.2713797092437744[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 41.195576429367065s[0m
+[43m[30m Evaluation computed in 7.867813110351562e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of val EVALUATION text2Image retrieval: {'recall@5': 0.4464, 'recall@10': 0.5718, 'recall@20': 0.6822, 'recall@100': 0.89, 'recall@None': 1.0, 'reciprocal_rank': 0.31616426811876913}[0m
+[41m[30m Average number of buckets for query 6.1174[0m
+[41m[30mTotal run_evaluation time elapsed:	 113.48882722854614s[0m
+[33m
+[7]	Best epoch w.r.t evaluation recall@5 in test:	7[0m
+[33m
+[7]	Best epoch w.r.t evaluation recall@5 in validation:	7[0m
+[33m
+[7]	Best epoch w.r.t evaluation recall@10 in test:	7[0m
+[33m
+[7]	Best epoch w.r.t evaluation recall@10 in validation:	7[0m
+[33m
+[7]	Best epoch w.r.t evaluation recall@20 in test:	7[0m
+[33m
+[7]	Best epoch w.r.t evaluation recall@20 in validation:	7[0m
+[33m
+[7]	Best epoch w.r.t evaluation recall@100 in test:	7[0m
+[33m
+[7]	Best epoch w.r.t evaluation recall@100 in validation:	7[0m
+[33m
+[7]	Best epoch w.r.t evaluation recall@None in test:	0[0m
+[33m
+[7]	Best epoch w.r.t evaluation recall@None in validation:	0[0m
+[33m
+[7]	Best epoch w.r.t evaluation reciprocal_rank in test:	7[0m
+[33m
+[7]	Best epoch w.r.t evaluation reciprocal_rank in validation:	7[0m
+[32m
+[0] 	 training loss:	 0.3180822432041168 	 time elapsed:	 2.3758981227874756 s[0m
+[32m
+[200] 	 training loss:	 0.32462685599923136 	 time elapsed:	 281.0512011051178 s[0m
+[33m
+[200]	validation loss:	0.6427617664375003	time elapsed:	93.48127126693726 s[0m
+[32m
+[400] 	 training loss:	 0.3299541972577572 	 time elapsed:	 290.3056569099426 s[0m
+[33m
+[400]	validation loss:	0.6393507558201986	time elapsed:	83.18473434448242 s[0m
+[32m
+[600] 	 training loss:	 0.33443511724472047 	 time elapsed:	 287.83084869384766 s[0m
+[33m
+[600]	validation loss:	0.6421456819488889	time elapsed:	85.37952375411987 s[0m
+[32m
+[800] 	 training loss:	 0.33791014105081557 	 time elapsed:	 288.6167862415314 s[0m
+[33m
+[800]	validation loss:	0.644031426263234	time elapsed:	85.70714402198792 s[0m
+[32m
+[1000] 	 training loss:	 0.33971184834837914 	 time elapsed:	 284.47327613830566 s[0m
+[33m
+[1000]	validation loss:	0.6343361408937545	time elapsed:	87.65148615837097 s[0m
+[32m
+[1200] 	 training loss:	 0.33925790056586264 	 time elapsed:	 286.5583598613739 s[0m
+[33m
+[1200]	validation loss:	0.6364634476956867	time elapsed:	84.3789894580841 s[0m
+[32m
+[1400] 	 training loss:	 0.34392290860414504 	 time elapsed:	 290.21681809425354 s[0m
+[33m
+[1400]	validation loss:	0.6364729059120965	time elapsed:	84.95140385627747 s[0m
+[32m
+[1600] 	 training loss:	 0.34575372442603114 	 time elapsed:	 287.6515808105469 s[0m
+[33m
+[1600]	validation loss:	0.6368730867665912	time elapsed:	87.08209753036499 s[0m
+[32m
+[1800] 	 training loss:	 0.34995236024260523 	 time elapsed:	 286.65898275375366 s[0m
+[33m
+[1800]	validation loss:	0.6325776032985203	time elapsed:	86.73243188858032 s[0m
+[32m
+Epoch finished in 3451.3877215385437 s, saving model to /hdd/master/tfm/output-image-encoders/model-inter-9-final.pt[0m
+[33m
+[8]	End of epoch validation loss:	0.6394165210307591[0m
+[33m
+[8]	End of epoch training loss:	0.3453436767468687[0m
+[33m
+[1861]	Best epoch w.r.t validation loss:	3[0m
+[33m
+[1861]	Best epoch w.r.t training loss:	8[0m
+[41m[30m######################################################################[0m
+[41m[30mtest EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 72.16239953041077s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.011245012283325195s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3393 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 144[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 89.89714117300325, std: 176.5557457556918[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 86.23720667232118, std: 173.8345984644516[0m
+[36m Average active features in images => mean: 305.021, std: 49.644360797577[0m
+[43m[30m
+ Analysis on computed index done in 0.27108120918273926[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 41.10078549385071s[0m
+[43m[30m Evaluation computed in 7.3909759521484375e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of test EVALUATION text2Image retrieval: {'recall@5': 0.4618, 'recall@10': 0.587, 'recall@20': 0.7018, 'recall@100': 0.892, 'recall@None': 1.0, 'reciprocal_rank': 0.3253752692858383}[0m
+[41m[30m Average number of buckets for query 6.0558[0m
+[41m[30mTotal run_evaluation time elapsed:	 113.54613590240479s[0m
+[41m[30m######################################################################[0m
+[41m[30mval EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 72.67022395133972s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.010831356048583984s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3363 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 174[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 91.06482307463574, std: 177.5133771546755[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 86.58495900480634, std: 174.20886459744546[0m
+[36m Average active features in images => mean: 306.251, std: 51.224779150329184[0m
+[43m[30m
+ Analysis on computed index done in 0.274059534072876[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 40.54698967933655s[0m
+[43m[30m Evaluation computed in 8.821487426757812e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of val EVALUATION text2Image retrieval: {'recall@5': 0.452, 'recall@10': 0.5718, 'recall@20': 0.6812, 'recall@100': 0.8926, 'recall@None': 1.0, 'reciprocal_rank': 0.3171151951870531}[0m
+[41m[30m Average number of buckets for query 6.1174[0m
+[41m[30mTotal run_evaluation time elapsed:	 113.50273704528809s[0m
+[33m
+[8]	Best epoch w.r.t evaluation recall@5 in test:	8[0m
+[33m
+[8]	Best epoch w.r.t evaluation recall@5 in validation:	8[0m
+[33m
+[8]	Best epoch w.r.t evaluation recall@10 in test:	8[0m
+[33m
+[8]	Best epoch w.r.t evaluation recall@10 in validation:	7[0m
+[33m
+[8]	Best epoch w.r.t evaluation recall@20 in test:	7[0m
+[33m
+[8]	Best epoch w.r.t evaluation recall@20 in validation:	7[0m
+[33m
+[8]	Best epoch w.r.t evaluation recall@100 in test:	7[0m
+[33m
+[8]	Best epoch w.r.t evaluation recall@100 in validation:	8[0m
+[33m
+[8]	Best epoch w.r.t evaluation recall@None in test:	0[0m
+[33m
+[8]	Best epoch w.r.t evaluation recall@None in validation:	0[0m
+[33m
+[8]	Best epoch w.r.t evaluation reciprocal_rank in test:	8[0m
+[33m
+[8]	Best epoch w.r.t evaluation reciprocal_rank in validation:	8[0m
+[32m
+[0] 	 training loss:	 0.3258877396583557 	 time elapsed:	 2.366422414779663 s[0m
+[32m
+[200] 	 training loss:	 0.30416090965271 	 time elapsed:	 285.13131380081177 s[0m
+[33m
+[200]	validation loss:	0.6767596209806109	time elapsed:	85.43295526504517 s[0m
+[32m
+[400] 	 training loss:	 0.3077205170691013 	 time elapsed:	 288.4686698913574 s[0m
+[33m
+[400]	validation loss:	0.6727975483924623	time elapsed:	85.09172582626343 s[0m
+[32m
+[600] 	 training loss:	 0.312161720842123 	 time elapsed:	 284.93260312080383 s[0m
+[33m
+[600]	validation loss:	0.6635732418960996	time elapsed:	86.64947462081909 s[0m
+[32m
+[800] 	 training loss:	 0.31383472099900245 	 time elapsed:	 286.76702976226807 s[0m
+[33m
+[800]	validation loss:	0.66147461628157	time elapsed:	86.82733845710754 s[0m
+[32m
+[1000] 	 training loss:	 0.31746079206466676 	 time elapsed:	 286.74663734436035 s[0m
+[33m
+[1000]	validation loss:	0.6571007900767856	time elapsed:	85.7936806678772 s[0m
+[32m
+[1200] 	 training loss:	 0.3180232362449169 	 time elapsed:	 291.0099813938141 s[0m
+[33m
+[1200]	validation loss:	0.6641147330639854	time elapsed:	85.30751967430115 s[0m
+[32m
+[1400] 	 training loss:	 0.3175072704255581 	 time elapsed:	 284.09359335899353 s[0m
+[33m
+[1400]	validation loss:	0.6601039928103251	time elapsed:	86.37648582458496 s[0m
+[32m
+[1600] 	 training loss:	 0.3241454443335533 	 time elapsed:	 284.3813211917877 s[0m
+[33m
+[1600]	validation loss:	0.6594919444076599	time elapsed:	86.15217590332031 s[0m
+[32m
+[1800] 	 training loss:	 0.3242678845673799 	 time elapsed:	 288.80516505241394 s[0m
+[33m
+[1800]	validation loss:	0.6625487638844384	time elapsed:	84.23744058609009 s[0m
+[32m
+Epoch finished in 3441.422217607498 s, saving model to /hdd/master/tfm/output-image-encoders/model-inter-10-final.pt[0m
+[33m
+[9]	End of epoch validation loss:	0.6639468518514482[0m
+[33m
+[9]	End of epoch training loss:	0.3275190552727121[0m
+[33m
+[1861]	Best epoch w.r.t validation loss:	3[0m
+[33m
+[1861]	Best epoch w.r.t training loss:	9[0m
+[41m[30m######################################################################[0m
+[41m[30mtest EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 73.72630167007446s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.01043081283569336s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3400 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 137[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 84.0370588235294, std: 168.1706882644817[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 80.78201865988126, std: 165.67708161839917[0m
+[36m Average active features in images => mean: 285.726, std: 48.56030193481091[0m
+[43m[30m
+ Analysis on computed index done in 0.2588613033294678[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 40.355493783950806s[0m
+[43m[30m Evaluation computed in 8.106231689453125e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of test EVALUATION text2Image retrieval: {'recall@5': 0.4514, 'recall@10': 0.5782, 'recall@20': 0.6916, 'recall@100': 0.8962, 'recall@None': 1.0, 'reciprocal_rank': 0.3200773726520535}[0m
+[41m[30m Average number of buckets for query 6.0558[0m
+[41m[30mTotal run_evaluation time elapsed:	 114.35172295570374s[0m
+[41m[30m######################################################################[0m
+[41m[30mval EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 70.07610845565796s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.010089635848999023s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3385 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 152[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 84.69217134416543, std: 168.6220715857249[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 81.05258693808312, std: 165.85082442468988[0m
+[36m Average active features in images => mean: 286.683, std: 50.046163799036584[0m
+[43m[30m
+ Analysis on computed index done in 0.2551121711730957[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 40.37647342681885s[0m
+[43m[30m Evaluation computed in 7.3909759521484375e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of val EVALUATION text2Image retrieval: {'recall@5': 0.456, 'recall@10': 0.5794, 'recall@20': 0.6884, 'recall@100': 0.8916, 'recall@None': 1.0, 'reciprocal_rank': 0.3181909198456448}[0m
+[41m[30m Average number of buckets for query 6.1174[0m
+[41m[30mTotal run_evaluation time elapsed:	 110.71842312812805s[0m
+[33m
+[9]	Best epoch w.r.t evaluation recall@5 in test:	8[0m
+[33m
+[9]	Best epoch w.r.t evaluation recall@5 in validation:	9[0m
+[33m
+[9]	Best epoch w.r.t evaluation recall@10 in test:	8[0m
+[33m
+[9]	Best epoch w.r.t evaluation recall@10 in validation:	9[0m
+[33m
+[9]	Best epoch w.r.t evaluation recall@20 in test:	7[0m
+[33m
+[9]	Best epoch w.r.t evaluation recall@20 in validation:	9[0m
+[33m
+[9]	Best epoch w.r.t evaluation recall@100 in test:	7[0m
+[33m
+[9]	Best epoch w.r.t evaluation recall@100 in validation:	8[0m
+[33m
+[9]	Best epoch w.r.t evaluation recall@None in test:	0[0m
+[33m
+[9]	Best epoch w.r.t evaluation recall@None in validation:	0[0m
+[33m
+[9]	Best epoch w.r.t evaluation reciprocal_rank in test:	8[0m
+[33m
+[9]	Best epoch w.r.t evaluation reciprocal_rank in validation:	9[0m
+[32m
+[0] 	 training loss:	 0.3305167853832245 	 time elapsed:	 2.377579689025879 s[0m
+[32m
+[200] 	 training loss:	 0.2834938468039036 	 time elapsed:	 288.02175426483154 s[0m
+[33m
+[200]	validation loss:	0.6971189630410027	time elapsed:	86.84897804260254 s[0m
+[32m
+[400] 	 training loss:	 0.2876915445923805 	 time elapsed:	 284.46287083625793 s[0m
+[33m
+[400]	validation loss:	0.6923608732601952	time elapsed:	86.49608325958252 s[0m
+[32m
+[600] 	 training loss:	 0.2897043847292662 	 time elapsed:	 285.29625606536865 s[0m
+[33m
+[600]	validation loss:	0.6863067821850852	time elapsed:	87.58279490470886 s[0m
+[32m
+[800] 	 training loss:	 0.290509709790349 	 time elapsed:	 287.86683654785156 s[0m
+[33m
+[800]	validation loss:	0.6868484578435383	time elapsed:	84.84042072296143 s[0m
+[32m
+[1000] 	 training loss:	 0.2954781885445118 	 time elapsed:	 288.0262682437897 s[0m
+[33m
+[1000]	validation loss:	0.690971797420865	time elapsed:	85.44510889053345 s[0m
+[32m
+[1200] 	 training loss:	 0.2992863664776087 	 time elapsed:	 287.8607642650604 s[0m
+[33m
+[1200]	validation loss:	0.6851625508732266	time elapsed:	86.78910398483276 s[0m
+[32m
+[1400] 	 training loss:	 0.3003344239294529 	 time elapsed:	 284.756285905838 s[0m
+[33m
+[1400]	validation loss:	0.6853883966567025	time elapsed:	85.50269103050232 s[0m
+[32m
+[1600] 	 training loss:	 0.3010368974506855 	 time elapsed:	 291.3836679458618 s[0m
+[33m
+[1600]	validation loss:	0.6893334677295079	time elapsed:	84.90158343315125 s[0m
+[32m
+[1800] 	 training loss:	 0.3055914793908596 	 time elapsed:	 291.5813753604889 s[0m
+[33m
+[1800]	validation loss:	0.679684855635204	time elapsed:	86.19816946983337 s[0m
+[32m
+Epoch finished in 3452.8219714164734 s, saving model to /hdd/master/tfm/output-image-encoders/model-inter-11-final.pt[0m
+[33m
+[10]	End of epoch validation loss:	0.6808008475909157[0m
+[33m
+[10]	End of epoch training loss:	0.3058237225794401[0m
+[33m
+[1861]	Best epoch w.r.t validation loss:	3[0m
+[33m
+[1861]	Best epoch w.r.t training loss:	10[0m
+[41m[30m######################################################################[0m
+[41m[30mtest EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 75.5821647644043s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.009789228439331055s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3375 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 162[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 83.84622222222222, std: 170.40244754748343[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 80.00593723494487, std: 167.37473246394924[0m
+[36m Average active features in images => mean: 282.981, std: 47.10554785797528[0m
+[43m[30m
+ Analysis on computed index done in 0.25893306732177734[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 40.11985683441162s[0m
+[43m[30m Evaluation computed in 9.5367431640625e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of test EVALUATION text2Image retrieval: {'recall@5': 0.456, 'recall@10': 0.5832, 'recall@20': 0.7002, 'recall@100': 0.8952, 'recall@None': 1.0, 'reciprocal_rank': 0.32272331618186356}[0m
+[41m[30m Average number of buckets for query 6.0558[0m
+[41m[30mTotal run_evaluation time elapsed:	 115.97137713432312s[0m
+[41m[30m######################################################################[0m
+[41m[30mval EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 73.0171856880188s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.010207891464233398s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3368 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 169[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 84.16894299287411, std: 170.43815345815958[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 80.14729997172745, std: 167.28269888080007[0m
+[36m Average active features in images => mean: 283.481, std: 48.24165875050318[0m
+[43m[30m
+ Analysis on computed index done in 0.26071739196777344[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 42.26195693016052s[0m
+[43m[30m Evaluation computed in 1.0013580322265625e-05s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of val EVALUATION text2Image retrieval: {'recall@5': 0.449, 'recall@10': 0.5744, 'recall@20': 0.6828, 'recall@100': 0.8922, 'recall@None': 1.0, 'reciprocal_rank': 0.3185793753542919}[0m
+[41m[30m Average number of buckets for query 6.1174[0m
+[41m[30mTotal run_evaluation time elapsed:	 115.55071067810059s[0m
+[33m
+[10]	Best epoch w.r.t evaluation recall@5 in test:	8[0m
+[33m
+[10]	Best epoch w.r.t evaluation recall@5 in validation:	9[0m
+[33m
+[10]	Best epoch w.r.t evaluation recall@10 in test:	8[0m
+[33m
+[10]	Best epoch w.r.t evaluation recall@10 in validation:	9[0m
+[33m
+[10]	Best epoch w.r.t evaluation recall@20 in test:	7[0m
+[33m
+[10]	Best epoch w.r.t evaluation recall@20 in validation:	9[0m
+[33m
+[10]	Best epoch w.r.t evaluation recall@100 in test:	7[0m
+[33m
+[10]	Best epoch w.r.t evaluation recall@100 in validation:	8[0m
+[33m
+[10]	Best epoch w.r.t evaluation recall@None in test:	0[0m
+[33m
+[10]	Best epoch w.r.t evaluation recall@None in validation:	0[0m
+[33m
+[10]	Best epoch w.r.t evaluation reciprocal_rank in test:	8[0m
+[33m
+[10]	Best epoch w.r.t evaluation reciprocal_rank in validation:	10[0m
+[32m
+[0] 	 training loss:	 0.3394871652126312 	 time elapsed:	 2.4695396423339844 s[0m
+[32m
+[200] 	 training loss:	 0.26660253196954725 	 time elapsed:	 287.7463698387146 s[0m
+[33m
+[200]	validation loss:	0.722532805469301	time elapsed:	87.81933546066284 s[0m
+[32m
+[400] 	 training loss:	 0.26956096485257147 	 time elapsed:	 287.2496678829193 s[0m
+[33m
+[400]	validation loss:	0.7201638950241936	time elapsed:	85.92998147010803 s[0m
+[32m
+[600] 	 training loss:	 0.2722391663491726 	 time elapsed:	 291.2617974281311 s[0m
+[33m
+[600]	validation loss:	0.7143539445740836	time elapsed:	83.72424411773682 s[0m
+[32m
+[800] 	 training loss:	 0.2752121598273516 	 time elapsed:	 296.135605096817 s[0m
+[33m
+[800]	validation loss:	0.712601691957504	time elapsed:	87.13884949684143 s[0m
+[32m
+[1000] 	 training loss:	 0.2761075795441866 	 time elapsed:	 294.0510878562927 s[0m
+[33m
+[1000]	validation loss:	0.7116319830455478	time elapsed:	87.72575211524963 s[0m
+[32m
+[1200] 	 training loss:	 0.2796627565473318 	 time elapsed:	 283.8630542755127 s[0m
+[33m
+[1200]	validation loss:	0.7111526500611078	time elapsed:	86.67222690582275 s[0m
+[32m
+[1400] 	 training loss:	 0.28020298175513747 	 time elapsed:	 285.5716276168823 s[0m
+[33m
+[1400]	validation loss:	0.7106359638865032	time elapsed:	84.19449591636658 s[0m
+[32m
+[1600] 	 training loss:	 0.2799070421606302 	 time elapsed:	 291.27017998695374 s[0m
+[33m
+[1600]	validation loss:	0.7162856242013356	time elapsed:	82.73561310768127 s[0m
+[32m
+[1800] 	 training loss:	 0.28595032542943954 	 time elapsed:	 279.7871882915497 s[0m
+[33m
+[1800]	validation loss:	0.7130358081961435	time elapsed:	84.62816190719604 s[0m
+[32m
+Epoch finished in 3454.432035446167 s, saving model to /hdd/master/tfm/output-image-encoders/model-inter-12-final.pt[0m
+[33m
+[11]	End of epoch validation loss:	0.7185755977554927[0m
+[33m
+[11]	End of epoch training loss:	0.2865482129034449[0m
+[33m
+[1861]	Best epoch w.r.t validation loss:	3[0m
+[33m
+[1861]	Best epoch w.r.t training loss:	11[0m
+[41m[30m######################################################################[0m
+[41m[30mtest EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 74.18411540985107s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.009634017944335938s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3375 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 162[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 76.4314074074074, std: 161.0436774163984[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 72.93073225897653, std: 158.12181132852191[0m
+[36m Average active features in images => mean: 257.956, std: 43.11563595727193[0m
+[43m[30m
+ Analysis on computed index done in 0.25521135330200195[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 40.697890758514404s[0m
+[43m[30m Evaluation computed in 9.5367431640625e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of test EVALUATION text2Image retrieval: {'recall@5': 0.4538, 'recall@10': 0.5834, 'recall@20': 0.6946, 'recall@100': 0.8962, 'recall@None': 1.0, 'reciprocal_rank': 0.3215955126532403}[0m
+[41m[30m Average number of buckets for query 6.0558[0m
+[41m[30mTotal run_evaluation time elapsed:	 115.14749312400818s[0m
+[41m[30m######################################################################[0m
+[41m[30mval EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 69.59736704826355s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.00933980941772461s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3368 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 169[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 76.74643705463183, std: 161.534487262601[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 73.07944585807181, std: 158.47591069550637[0m
+[36m Average active features in images => mean: 258.482, std: 44.42620483453431[0m
+[43m[30m
+ Analysis on computed index done in 0.24935507774353027[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 40.71010494232178s[0m
+[43m[30m Evaluation computed in 1.0013580322265625e-05s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of val EVALUATION text2Image retrieval: {'recall@5': 0.448, 'recall@10': 0.5714, 'recall@20': 0.6822, 'recall@100': 0.887, 'recall@None': 1.0, 'reciprocal_rank': 0.31947003244631794}[0m
+[41m[30m Average number of buckets for query 6.1174[0m
+[41m[30mTotal run_evaluation time elapsed:	 110.56679606437683s[0m
+[33m
+[11]	Best epoch w.r.t evaluation recall@5 in test:	8[0m
+[33m
+[11]	Best epoch w.r.t evaluation recall@5 in validation:	9[0m
+[33m
+[11]	Best epoch w.r.t evaluation recall@10 in test:	8[0m
+[33m
+[11]	Best epoch w.r.t evaluation recall@10 in validation:	9[0m
+[33m
+[11]	Best epoch w.r.t evaluation recall@20 in test:	7[0m
+[33m
+[11]	Best epoch w.r.t evaluation recall@20 in validation:	9[0m
+[33m
+[11]	Best epoch w.r.t evaluation recall@100 in test:	7[0m
+[33m
+[11]	Best epoch w.r.t evaluation recall@100 in validation:	8[0m
+[33m
+[11]	Best epoch w.r.t evaluation recall@None in test:	0[0m
+[33m
+[11]	Best epoch w.r.t evaluation recall@None in validation:	0[0m
+[33m
+[11]	Best epoch w.r.t evaluation reciprocal_rank in test:	8[0m
+[33m
+[11]	Best epoch w.r.t evaluation reciprocal_rank in validation:	11[0m
+[32m
+[0] 	 training loss:	 0.2515471577644348 	 time elapsed:	 2.5170915126800537 s[0m
+[32m
+[200] 	 training loss:	 0.2503202747553587 	 time elapsed:	 278.0282654762268 s[0m
+[33m
+[200]	validation loss:	0.7581940927202739	time elapsed:	83.49232077598572 s[0m
+[32m
+[400] 	 training loss:	 0.2549327589571476 	 time elapsed:	 282.1632995605469 s[0m
+[33m
+[400]	validation loss:	0.7592398661469656	time elapsed:	83.06972622871399 s[0m
+[32m
+[600] 	 training loss:	 0.25483249567449096 	 time elapsed:	 283.1794500350952 s[0m
+[33m
+[600]	validation loss:	0.7572758675567688	time elapsed:	85.06753206253052 s[0m
+[32m
+[800] 	 training loss:	 0.2574169494211674 	 time elapsed:	 279.0940430164337 s[0m
+[33m
+[800]	validation loss:	0.746972780379038	time elapsed:	85.41305232048035 s[0m
+[32m
+[1000] 	 training loss:	 0.259718644246459 	 time elapsed:	 282.5784525871277 s[0m
+[33m
+[1000]	validation loss:	0.7568628173025828	time elapsed:	83.84118008613586 s[0m
+[32m
+[1200] 	 training loss:	 0.26268844604492186 	 time elapsed:	 282.20750761032104 s[0m
+[33m
+[1200]	validation loss:	0.7410566111405691	time elapsed:	83.36861968040466 s[0m
+[32m
+[1400] 	 training loss:	 0.26300819098949435 	 time elapsed:	 280.27750158309937 s[0m
+[33m
+[1400]	validation loss:	0.7499180138111115	time elapsed:	88.61928677558899 s[0m
+[32m
+[1600] 	 training loss:	 0.26454025991261004 	 time elapsed:	 278.8701057434082 s[0m
+[33m
+[1600]	validation loss:	0.7458329058828808	time elapsed:	84.93081951141357 s[0m
+[32m
+[1800] 	 training loss:	 0.26681966073811053 	 time elapsed:	 279.67249751091003 s[0m
+[33m
+[1800]	validation loss:	0.7462325096130371	time elapsed:	83.20242977142334 s[0m
+[32m
+Epoch finished in 3374.7802748680115 s, saving model to /hdd/master/tfm/output-image-encoders/model-inter-13-final.pt[0m
+[33m
+[12]	End of epoch validation loss:	0.7417774711336408[0m
+[33m
+[12]	End of epoch training loss:	0.2723961868247048[0m
+[33m
+[1861]	Best epoch w.r.t validation loss:	3[0m
+[33m
+[1861]	Best epoch w.r.t training loss:	12[0m
+[41m[30m######################################################################[0m
+[41m[30mtest EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 72.3941719532013s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.009101152420043945s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3367 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 170[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 74.04662904662905, std: 158.58300149543945[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 70.48770144189992, std: 155.53361384844726[0m
+[36m Average active features in images => mean: 249.315, std: 43.11233901100705[0m
+[43m[30m
+ Analysis on computed index done in 0.25030517578125[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 41.68894052505493s[0m
+[43m[30m Evaluation computed in 7.62939453125e-06s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of test EVALUATION text2Image retrieval: {'recall@5': 0.4562, 'recall@10': 0.584, 'recall@20': 0.701, 'recall@100': 0.8952, 'recall@None': 1.0, 'reciprocal_rank': 0.32591259716388565}[0m
+[41m[30m Average number of buckets for query 6.0558[0m
+[41m[30mTotal run_evaluation time elapsed:	 114.34315943717957s[0m
+[41m[30m######################################################################[0m
+[41m[30mval EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 68.45296335220337s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.008539199829101562s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3353 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 184[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 74.56248135997615, std: 159.22779016864732[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 70.68363019508058, std: 155.91258522973385[0m
+[36m Average active features in images => mean: 250.008, std: 44.24310043385296[0m
+[43m[30m
+ Analysis on computed index done in 0.24689340591430664[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 41.4871084690094s[0m
+[43m[30m Evaluation computed in 1.0013580322265625e-05s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of val EVALUATION text2Image retrieval: {'recall@5': 0.4542, 'recall@10': 0.5716, 'recall@20': 0.6824, 'recall@100': 0.8852, 'recall@None': 1.0, 'reciprocal_rank': 0.3197147285615706}[0m
+[41m[30m Average number of buckets for query 6.1174[0m
+[41m[30mTotal run_evaluation time elapsed:	 110.19613933563232s[0m
+[33m
+[12]	Best epoch w.r.t evaluation recall@5 in test:	8[0m
+[33m
+[12]	Best epoch w.r.t evaluation recall@5 in validation:	9[0m
+[33m
+[12]	Best epoch w.r.t evaluation recall@10 in test:	8[0m
+[33m
+[12]	Best epoch w.r.t evaluation recall@10 in validation:	9[0m
+[33m
+[12]	Best epoch w.r.t evaluation recall@20 in test:	7[0m
+[33m
+[12]	Best epoch w.r.t evaluation recall@20 in validation:	9[0m
+[33m
+[12]	Best epoch w.r.t evaluation recall@100 in test:	7[0m
+[33m
+[12]	Best epoch w.r.t evaluation recall@100 in validation:	8[0m
+[33m
+[12]	Best epoch w.r.t evaluation recall@None in test:	0[0m
+[33m
+[12]	Best epoch w.r.t evaluation recall@None in validation:	0[0m
+[33m
+[12]	Best epoch w.r.t evaluation reciprocal_rank in test:	12[0m
+[33m
+[12]	Best epoch w.r.t evaluation reciprocal_rank in validation:	12[0m
+[32m
+[0] 	 training loss:	 0.24313178658485413 	 time elapsed:	 2.58120059967041 s[0m
+[32m
+[200] 	 training loss:	 0.23468381121754647 	 time elapsed:	 285.32574105262756 s[0m
+[33m
+[200]	validation loss:	0.7916141346333518	time elapsed:	87.24146103858948 s[0m
+[32m
+[400] 	 training loss:	 0.23833416610956193 	 time elapsed:	 291.83053398132324 s[0m
+[33m
+[400]	validation loss:	0.7845586907295954	time elapsed:	87.63978672027588 s[0m
+[32m
+[600] 	 training loss:	 0.23884114317595959 	 time elapsed:	 287.7579550743103 s[0m
+[33m
+[600]	validation loss:	0.7770831641696748	time elapsed:	85.89647078514099 s[0m
+[32m
+[800] 	 training loss:	 0.24461929038167 	 time elapsed:	 287.77695512771606 s[0m
+[33m
+[800]	validation loss:	0.7749762402640449	time elapsed:	85.55246162414551 s[0m
+[32m
+[1000] 	 training loss:	 0.24469863079488277 	 time elapsed:	 296.9148163795471 s[0m
+[33m
+[1000]	validation loss:	0.7803157113847279	time elapsed:	86.28653573989868 s[0m
+[32m
+[1200] 	 training loss:	 0.24694776356220247 	 time elapsed:	 289.7019121646881 s[0m
+[33m
+[1200]	validation loss:	0.7701229330093141	time elapsed:	88.59476947784424 s[0m
+[32m
+[1400] 	 training loss:	 0.2491604333370924 	 time elapsed:	 293.87044286727905 s[0m
+[33m
+[1400]	validation loss:	0.7821745456211151	time elapsed:	88.94914841651917 s[0m
+[32m
+[1600] 	 training loss:	 0.2501549179852009 	 time elapsed:	 290.5474376678467 s[0m
+[33m
+[1600]	validation loss:	0.769352482424842	time elapsed:	86.51721501350403 s[0m
+[32m
+[1800] 	 training loss:	 0.25230428591370585 	 time elapsed:	 292.97953629493713 s[0m
+[33m
+[1800]	validation loss:	0.7788935502370199	time elapsed:	88.7396833896637 s[0m
+[32m
+Epoch finished in 3491.5922751426697 s, saving model to /hdd/master/tfm/output-image-encoders/model-inter-14-final.pt[0m
+[33m
+[13]	End of epoch validation loss:	0.7678545713424683[0m
+[33m
+[13]	End of epoch training loss:	0.253528073918624[0m
+[33m
+[1861]	Best epoch w.r.t validation loss:	3[0m
+[33m
+[1861]	Best epoch w.r.t training loss:	13[0m
+[41m[30m######################################################################[0m
+[41m[30mtest EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 75.67481923103333s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.008155584335327148s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3346 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 191[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 71.13030484160191, std: 156.0673402742089[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 67.28922815945717, std: 152.64398192852914[0m
+[36m Average active features in images => mean: 238.002, std: 41.491276143305114[0m
+[43m[30m
+ Analysis on computed index done in 0.24334263801574707[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 41.246307373046875s[0m
+[43m[30m Evaluation computed in 1.0013580322265625e-05s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of test EVALUATION text2Image retrieval: {'recall@5': 0.4502, 'recall@10': 0.5816, 'recall@20': 0.6954, 'recall@100': 0.8952, 'recall@None': 1.0, 'reciprocal_rank': 0.3202230644939373}[0m
+[41m[30m Average number of buckets for query 6.0558[0m
+[41m[30mTotal run_evaluation time elapsed:	 117.17324662208557s[0m
+[41m[30m######################################################################[0m
+[41m[30mval EVALUATION text2Image retrieval start [0m
+[43m[30m Extract the sparse embeddings of all the images[0m
+ Indexed 16 images out of 1008
+[43m[30m
+ Image embeddings collected in 72.11974859237671s[0m
+[43m[30m
+ Fit transform a TFIDFTransformer with the images in the collection[0m
+[43m[30m
+ TFIDF Transform fitting finished in 0.008092403411865234s[0m
+[43m[30m
+ Analyse computed index[0m
+ Analyzing index with 1000 images with vocabulary size 3537
+[36m Number of keys with at least one candidate => 3322 out of 3537[0m
+[36m Size of vocabulary 3537[0m
+[36m Number of empty bins => 215[0m
+[36m Average amount of documents per bucket, ignoring 0-sized buckets => mean: 71.75496688741723, std: 156.61923301121283[0m
+[36m Average amount of documents per bucket, counting 0-sized buckets => mean: 67.39327113372914, std: 152.74972458289633[0m
+[36m Average active features in images => mean: 238.37, std: 42.54375512340207[0m
+[43m[30m
+ Analysis on computed index done in 0.2427222728729248[0m
+[43m[30m Query the TFIDF[0m
+ Queried 1000 captions out of 5000
+[43m[30m Results collected in 41.532485246658325s[0m
+[43m[30m Evaluation computed in 1.0013580322265625e-05s[0m
+[41m[30m######################################################################[0m
+[41m[30mRESULTS of val EVALUATION text2Image retrieval: {'recall@5': 0.4502, 'recall@10': 0.5704, 'recall@20': 0.6804, 'recall@100': 0.8888, 'recall@None': 1.0, 'reciprocal_rank': 0.3165032000722431}[0m
+[41m[30m Average number of buckets for query 6.1174[0m
+[41m[30mTotal run_evaluation time elapsed:	 113.90368843078613s[0m
+[33m
+[13]	Best epoch w.r.t evaluation recall@5 in test:	8[0m
+[33m
+[13]	Best epoch w.r.t evaluation recall@5 in validation:	9[0m
+[33m
+[13]	Best epoch w.r.t evaluation recall@10 in test:	8[0m
+[33m
+[13]	Best epoch w.r.t evaluation recall@10 in validation:	9[0m
+[33m
+[13]	Best epoch w.r.t evaluation recall@20 in test:	7[0m
+[33m
+[13]	Best epoch w.r.t evaluation recall@20 in validation:	9[0m
+[33m
+[13]	Best epoch w.r.t evaluation recall@100 in test:	7[0m
+[33m
+[13]	Best epoch w.r.t evaluation recall@100 in validation:	8[0m
+[33m
+[13]	Best epoch w.r.t evaluation recall@None in test:	0[0m
+[33m
+[13]	Best epoch w.r.t evaluation recall@None in validation:	0[0m
+[33m
+[13]	Best epoch w.r.t evaluation reciprocal_rank in test:	12[0m
+[33m
+[13]	Best epoch w.r.t evaluation reciprocal_rank in validation:	12[0m
+[32m
+[0] 	 training loss:	 0.22789055109024048 	 time elapsed:	 2.3804173469543457 s[0m
+Traceback (most recent call last):
+  File "src/train/train.py", line 553, in <module>
+    batch_size=16)
+  File "src/train/train.py", line 415, in train
+    text_embedding = text_encoder.forward(caption).to(device)
+  File "/home/joan/Master/TFM/Sparse_Embeddings/src/model/text.py", line 25, in forward
+    return torch.Tensor(self.vectorizer.transform(x).toarray())
+  File "/home/joan/.local/lib/python3.7/site-packages/sklearn/feature_extraction/text.py", line 1270, in transform
+    _, X = self._count_vocab(raw_documents, fixed_vocab=True)
+  File "/home/joan/.local/lib/python3.7/site-packages/sklearn/feature_extraction/text.py", line 1131, in _count_vocab
+    for feature in analyze(doc):
+  File "/home/joan/.local/lib/python3.7/site-packages/sklearn/feature_extraction/text.py", line 105, in _analyze
+    doc = tokenizer(doc)
+  File "/home/joan/Master/TFM/Sparse_Embeddings/src/model/spacy_tokenizer.py", line 8, in spacy_tokenizer
+    for token in nlp(doc):
+  File "/home/joan/.local/lib/python3.7/site-packages/spacy/language.py", line 995, in __call__
+    doc = proc(doc, **component_cfg.get(name, {}))
+KeyboardInterrupt

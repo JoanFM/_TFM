@@ -1,0 +1,11 @@
+jina==2.4.5
+streamlit==0.87.0
+torch==1.8.1
+torch-sparse==0.6.11
+torchvision==0.9.1
+scipy==1.6.1
+numpy==1.19.5
+scikit-learn==0.22.2.post1
+progress==1.5
+pandas==1.0.3
+spacy==3.0.6

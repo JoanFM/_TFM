@@ -10,7 +10,7 @@ def search_and_show(text, gt_filename=None):
             st.title(f' Expected groundtruth for:\n {text}')
             cell_gt = st.container()
             cell_gt.image(f'{images_path}/{gt_filename}', caption=text)
-        st.title(' Matches obtained')
+        st.title(f' Matches obtained for: \n {text}')
         cell1, cell2, cell3 = st.columns(3)
         cell4, cell5, cell6 = st.columns(3)
         cell7, cell8, cell9 = st.columns(3)
