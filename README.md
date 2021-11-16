@@ -57,6 +57,10 @@ Then you can run the following command:
 
 You should see logs informing about the evolution of `training` and `validation` loss. Also you should see evaluation results after each epoch.
 
+![image](https://user-images.githubusercontent.com/19825685/142002361-ea3b5753-66e5-4170-a60b-ce8c7c7e3360.png)
+
+![image](https://user-images.githubusercontent.com/19825685/142002516-3e13b3cb-e95f-4f76-a0ab-9232f2dde43e.png)
+
 You can also run evaluation on a single model by running the following command:
 
 
