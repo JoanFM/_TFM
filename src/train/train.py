@@ -245,6 +245,7 @@ def run_evaluations(image_encoder, text_encoder, batch_size, root, split_root, s
         print(colored(f' Query the TFIDF', 'black', 'on_yellow'))
         for batch_id, (filenames, captions) in enumerate(text_data_loader):
             text_embedding_query = csr_matrix(text_encoder.forward(captions).detach().numpy())
+            text_embedding_query = tfidf_transformer.transform(text_embedding_query)
             cosine_scores = cosine_similarity(text_embedding_query, image_tfidf_index)
             retrieved_image_filenames = []  # it should be a list of lists
             groundtruth_expected_image_filenames = []  # it should be a list of lists
@@ -411,7 +412,7 @@ def train(output_model_path: str,
                     optimizer.zero_grad()
                     image = image.to(device)
                     image_embedding = image_encoder.forward(image)
-
+                    l1_regularization = torch.mean(torch.sum(image_embedding, dim=1))
                     text_embedding = text_encoder.forward(caption).to(device)
                     text_embedding = text_embedding / text_embedding
                     text_embedding[text_embedding != text_embedding] = 0
@@ -508,7 +509,9 @@ if __name__ == '__main__':
     filter_layer_size = {'3000': 47, '2000': 80, '1000': 165, '500': 311, '100': 1062, '10': 3537, None: 13439}
     vectorizer_path = f'{TEXT_EMBEDDING_VECTORIZER_BASE_PATH}/vectorizer_tokenizer_stop_words_all_words_filtered_{min_num_appareances}.pkl' if min_num_appareances is not None else f'{TEXT_EMBEDDING_VECTORIZER_BASE_PATH}/vectorizer_tokenizer_stop_words_all_words.pkl'
     # positive_weights = 190.2681631496955
-    layers = [4096, filter_layer_size[str(min_num_appareances) if min_num_appareances is not None else None]]
+    text_encoder = TextEncoder(vectorizer_path)
+    last_layer_size = text_encoder.forward(['test']).shape[1]
+    layers = [4096, last_layer_size]
     if len(sys.argv) > 1:
         task = sys.argv[1]
         if task == 'evaluate':
@@ -539,7 +542,6 @@ if __name__ == '__main__':
             sys.exit(0)
 
     min_num_appareances = 10
-    vectorizer_path = f'{TEXT_EMBEDDING_VECTORIZER_BASE_PATH}/vectorizer_tokenizer_stop_words_all_words_filtered_{min_num_appareances}.pkl' if min_num_appareances is not None else f'{TEXT_EMBEDDING_VECTORIZER_BASE_PATH}/vectorizer_tokenizer_stop_words_all_words.pkl'
     mean_positives, mean_negatives, mean_totals = compute_average_positives_in_vocab(vectorizer_path, 'cpu')
     positive_weights = mean_negatives / mean_positives
     # positive_weights = 190.2681631496955

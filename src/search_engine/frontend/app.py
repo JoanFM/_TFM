@@ -16,7 +16,10 @@ def search_and_show(text, gt_filename=None):
         cell7, cell8, cell9 = st.columns(3)
         all_cells = [cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9]
         for cell, match in zip(all_cells, matches):
-            cell.image(f'{images_path}/{match["tags"]["filename"]}', use_column_width=True)
+            caption = ','.join(match["tags"]["words"][0:10])
+            caption += f' from {match["tags"]["num_words_in_image"]}'
+            cell.image(f'{images_path}/{match["tags"]["filename"]}', use_column_width=True,
+                       caption=caption)
 
     return _search_and_show
 

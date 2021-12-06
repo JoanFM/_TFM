@@ -1,4 +1,5 @@
 import os
+import sys
 import pickle
 
 import torch
@@ -25,31 +26,26 @@ class TextEncoder:
         return torch.Tensor(self.vectorizer.transform(x).toarray())
 
 
-def get_model():
+def get_model(min_df=10, max_df=1.0):
     """
     Given a DataLoader loading only captions fit into a CountVectorizer to obtain the TextEncoder model to use for training
     """
     # 4154 words appear at least 10 times in the full 30k dataset
-    # train_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
-    #                                         split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
-    #                                         split='train')
-    test_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
-                                           split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
-                                           split='test')
-    # val_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
-    #                                       split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
-    #                                       split='val')
+    train_dataset = CaptionFlickr30kDataset(root='/hdd/master/tfm/flickr30k_images',
+                                            split_root='/hdd/master/tfm/flickr30k_images/flickr30k_entities',
+                                            split='train')
 
-    corpus = [test_dataset[i][1] for i in range(len(test_dataset))]
-    # corpus = [train_dataset[i][1] for i in range(len(train_dataset))] + \
-    #          [test_dataset[i][1] for i in range(len(test_dataset))] + \
-    #          [val_dataset[i][1] for i in range(len(val_dataset))]
+    corpus = [train_dataset[i][1] for i in range(len(train_dataset))]
 
-    vectorizer = CountVectorizer(tokenizer=spacy_tokenizer, stop_words='english')
+    print(f' Fitting a vectorizer with a corpus of {len(corpus)} sentences with min_df {min_df} and max_df {max_df}')
+    vectorizer = CountVectorizer(tokenizer=spacy_tokenizer, stop_words='english', min_df=min_df, max_df=max_df, binary=True)
     vectorizer.fit(corpus)
-    with open('vectorizer_tokenizer_stop_words-test.pkl', 'wb') as f:
+    with open(f'vectorizer_tokenizer_stop_words_{min_df}_{max_df}.pkl', 'wb') as f:
         pickle.dump(vectorizer, f)
+    print(f' length of vocabulary is {len(vectorizer.vocabulary_)}')
 
 
 if __name__ == '__main__':
-     get_model()
+    min_df = int(sys.argv[1])
+    max_df = float(sys.argv[2])
+    get_model(min_df, max_df)

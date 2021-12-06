@@ -36,11 +36,13 @@ DATASET_SPLIT = os.getenv('DATASET_SPLIT', 'test')
 
 class JinaImageEncoder(Executor):
 
-    def __init__(self, model_path, *args, **kwargs):
+    def __init__(self, model_path, vectorizer_path, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._image_encoder = ImageEncoder(layer_size=[4096, 3537])
         self._image_encoder.load_state_dict(torch.load(model_path))
         self._image_encoder.training = False
+        text_encoder = TextEncoder(vectorizer_path)
+        self._vocab = {v: k for k, v in text_encoder.vectorizer.vocabulary_.items()}
 
     @requests
     def encode(self, docs, **kwargs):
@@ -48,7 +50,11 @@ class JinaImageEncoder(Executor):
             images = docs.get_attributes('blob')
             embeddings = self._image_encoder(torch.from_numpy(np.array(images)))
             for doc, embedding in zip(docs, embeddings):
-                doc.embedding = csr_matrix(embedding.detach().numpy())
+                embedding = csr_matrix(embedding.detach().numpy())
+                sort_indices = np.argsort(-embedding.data)
+                doc.tags['words'] = [self._vocab[embedding.indices[i]] for i in sort_indices]
+                doc.tags['num_words_in_image'] = len(embedding.indices)
+                doc.embedding = embedding
 
 
 class JinaTextEncoder(Executor):
@@ -56,6 +62,7 @@ class JinaTextEncoder(Executor):
     def __init__(self, vectorizer_path, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._text_encoder = TextEncoder(vectorizer_path)
+        self._vocab = {v: k for k, v in self._text_encoder.vectorizer.vocabulary_.items()}
 
     @requests
     def encode(self, docs, **kwargs):
@@ -66,6 +73,7 @@ class JinaTextEncoder(Executor):
             text_embedding = text_embedding / text_embedding
             text_embedding[text_embedding != text_embedding] = 0
             doc.embedding = csr_matrix(text_embedding)
+            doc.tags['words'] = [self._vocab[i] for i in doc.embedding.indices]
 
 
 def csr_vappend(a, b):
@@ -115,6 +123,7 @@ class JinaIndexer(Executor):
 
         all_query_embeddings = None
         for doc in docs:
+            doc.embedding = self._tfidf_transformer.transform(doc.embedding)
             text_embedding = doc.embedding
             if all_query_embeddings is None:
                 all_query_embeddings = csr_matrix(text_embedding)
@@ -153,7 +162,8 @@ def _get_index_documents(root=DATASET_ROOT_PATH,
 
 def index():
     f = Flow().add(uses=JinaImageEncoder,
-                   uses_with={'model_path': IMAGE_EMBEDDING_MODEL_PATH}).add(
+                   uses_with={'model_path': IMAGE_EMBEDDING_MODEL_PATH,
+                              'vectorizer_path': TEXT_EMBEDDING_VECTORIZER_PATH}).add(
         uses=JinaIndexer, uses_with={
             'index_path': INDEX_FILE_PATH})
     with f:
