@@ -15,23 +15,13 @@ INDEX_FILE_PATH = os.getenv('INDEX_FILE_PATH', 'tmp/sparse_index')
 # Model to expose for indexing, the path where the state_dict of the model is stored
 IMAGE_EMBEDDING_MODEL_PATH = os.getenv('IMAGE_EMBEDDING_MODEL_PATH', '/hdd/master/tfm/output-image-encoders/model-inter-9-final.pt')
 # Text embedding model to expose for querying, the path where the CountVectorizer is stored of the model is stored
-TEXT_EMBEDDING_VECTORIZER_PATH = os.getenv('TEXT_EMBEDDING_VECTORIZER_PATH', '/hdd/master/tfm/vectorizers/vectorizer_tokenizer_stop_words_all_words_filtered_10.pkl')
+TEXT_EMBEDDING_VECTORIZER_PATH = os.getenv('TEXT_EMBEDDING_VECTORIZER_PATH', 'vectorizer.pkl')
 # The root path where the flickr30k dataset is found
 DATASET_ROOT_PATH = os.getenv('DATASET_ROOT_PATH', '/hdd/master/tfm/flickr30k_images')
 # The root path where the flickr30k entities per split is kept
 DATASET_SPLIT_ROOT_PATH = os.getenv('DATASET_SPLIT_ROOT_PATH', '/hdd/master/tfm/flickr30k_images/flickr30k_entities')
 # The split to use for indexing (test, val, train)
 DATASET_SPLIT = os.getenv('DATASET_SPLIT', 'test')
-
-
-# class MatchConverter(Executor):
-#
-#     @requests
-#     def convert(self, docs, **kwargs):
-#         for doc in docs:
-#             for match in doc.matches:
-#                 match.set_image_blob_shape(channel_axis=0, shape=(match.blob.shape[1], match.blob.shape[2]))
-#                 match.convert_image_blob_to_uri()
 
 
 class JinaImageEncoder(Executor):

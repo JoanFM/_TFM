@@ -20,10 +20,8 @@ cur_dir = os.path.dirname(os.path.abspath(__file__))
 
 # The base directory where models are stored after every epoch
 IMAGE_EMBEDDING_BASE_PATH = os.getenv('IMAGE_EMBEDDING_BASE_PATH', '/hdd/master/tfm/output-image-encoders')
-# The base directory where models where CountVectorizer are stored. Different CountVectorizers correspond to
-# different preprocessings of the corpus
-TEXT_EMBEDDING_VECTORIZER_BASE_PATH = os.getenv('TEXT_EMBEDDING_VECTORIZER_PATH',
-                                                '/hdd/master/tfm/vectorizers')
+
+TEXT_EMBEDDING_VECTORIZER_PATH = os.getenv('TEXT_EMBEDDING_VECTORIZER_PATH', 'vectorizer.pkl')
 # The root path where the flickr30k dataset is found
 DATASET_ROOT_PATH = os.getenv('DATASET_ROOT_PATH', '/hdd/master/tfm/flickr30k_images')
 # The root path where the flickr30k entities per split is kept
@@ -502,22 +500,16 @@ def train(output_model_path: str,
         epoch_bar.next()
 
 
-if __name__ == '__main__':
-    import sys
-
-    min_num_appareances = 10
-    filter_layer_size = {'3000': 47, '2000': 80, '1000': 165, '500': 311, '100': 1062, '10': 3537, None: 13439}
-    vectorizer_path = f'{TEXT_EMBEDDING_VECTORIZER_BASE_PATH}/vectorizer_tokenizer_stop_words_all_words_filtered_{min_num_appareances}.pkl' if min_num_appareances is not None else f'{TEXT_EMBEDDING_VECTORIZER_BASE_PATH}/vectorizer_tokenizer_stop_words_all_words.pkl'
-    # positive_weights = 190.2681631496955
-    text_encoder = TextEncoder(vectorizer_path)
-    last_layer_size = text_encoder.forward(['test']).shape[1]
-    layers = [4096, last_layer_size]
-    if len(sys.argv) > 1:
-        task = sys.argv[1]
+def main(*args, **kwargs):
+    if len(args) > 1:
+        task = args[1]
         if task == 'evaluate':
-            split = sys.argv[2]
-            path = sys.argv[3]
-
+            split = args[2]
+            path = args[3]
+            vectorizer_path = args[4] if len(args) > 4 else TEXT_EMBEDDING_VECTORIZER_PATH
+            text_encoder = TextEncoder(vectorizer_path)
+            last_layer_size = text_encoder.forward(['test']).shape[1]
+            layers = [4096, last_layer_size]
             image_encoder = ImageEncoder(layer_size=layers)
             image_encoder.load_state_dict(torch.load(path))
             image_encoder.eval()
@@ -527,11 +519,17 @@ if __name__ == '__main__':
                             split_root=DATASET_SPLIT_ROOT_PATH,
                             split=split,
                             top_ks=[1, 5, 10, 20, None])
+            import sys
+
             sys.exit(0)
 
         if task == 'analyse':
-            split = sys.argv[2]
-            path = sys.argv[3]
+            split = args[2]
+            path = args[3]
+            vectorizer_path = args[4] if len(args) > 4 else TEXT_EMBEDDING_VECTORIZER_PATH
+            text_encoder = TextEncoder(vectorizer_path)
+            last_layer_size = text_encoder.forward(['test']).shape[1]
+            layers = [4096, last_layer_size]
 
             image_encoder = ImageEncoder(layer_size=layers)
             image_encoder.load_state_dict(torch.load(path))
@@ -539,9 +537,13 @@ if __name__ == '__main__':
             analyse(image_encoder, batch_size=16, root=DATASET_ROOT_PATH,
                     split_root=DATASET_SPLIT_ROOT_PATH,
                     split=split)
+            import sys
             sys.exit(0)
 
-    min_num_appareances = 10
+    vectorizer_path = args[2] if len(args) > 2 else TEXT_EMBEDDING_VECTORIZER_PATH
+    text_encoder = TextEncoder(vectorizer_path)
+    last_layer_size = text_encoder.forward(['test']).shape[1]
+    layers = [4096, last_layer_size]
     mean_positives, mean_negatives, mean_totals = compute_average_positives_in_vocab(vectorizer_path, 'cpu')
     positive_weights = mean_negatives / mean_positives
     # positive_weights = 190.2681631496955
@@ -553,3 +555,8 @@ if __name__ == '__main__':
         layers=layers,
         positive_weights=positive_weights,
         batch_size=16)
+
+
+if __name__ == '__main__':
+    import sys
+    main(*sys.argv)
