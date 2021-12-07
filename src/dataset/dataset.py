@@ -82,6 +82,8 @@ class ImageCaptionFlickr30kDataset(Flickr30kDataset):
         filename = f'{self.ids[image_id_index]}.jpg'
         group_df = self.groups.get_group(filename)
         captions = group_df[' comment'].to_list()
+        for caption in captions:
+            print(f'JOAN  caption {caption}')
         captions_concat = ' '.join(captions)
         positive_img = self._get_image(image_id_index)
         return filename, positive_img, captions_concat
