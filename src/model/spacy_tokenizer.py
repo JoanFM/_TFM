@@ -16,3 +16,13 @@ def spacy_tokenizer(doc):
                 if all(c.isalnum() for c in lower_lemma):
                     result.append(lower_lemma)
     return result
+
+
+def query_light_spacy_tokenizer(doc):
+    result = []
+
+    for token in nlp(doc):
+        if not token.is_punct and not token.is_space:
+            lower_lemma = token.lemma_.lower()
+            result.append(lower_lemma)
+    return result

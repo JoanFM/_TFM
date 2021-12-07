@@ -18,18 +18,19 @@ class DenseVisualFeatureExtractor:
             dev = "cuda:0"
         else:
             dev = "cpu"
-        device = torch.device(dev)
+        self.device = torch.device(dev)
 
         self.pool_fn = None
         self.model = getattr(models, backbone_model)(pretrained=True)
         self.model = self.model.eval()
         self.layer = self.model._modules.get('avgpool')
-        self.model.to(device)
+        self.model.to(self.device)
 
     @property
     def output_dim(self):
         random_image_array = np.random.random((8, 3, 224, 224))
         content = torch.Tensor(random_image_array)
+        content = content.to(self.device)
         return self.encode(content).shape[1]
 
     def _get_features(self, content):
@@ -60,7 +61,7 @@ class ImageEncoder(nn.Module):
             dev = "cuda:0"
         else:
             dev = "cpu"
-        device = torch.device(dev)
+        self.device = torch.device(dev)
         if layer_size is None:
             layer_size = [4096, 1062]
         self.feature_extractor = DenseVisualFeatureExtractor(**kwargs)
@@ -73,12 +74,11 @@ class ImageEncoder(nn.Module):
             previous_layer = layer
         #
         modules.pop()
-        #modules.append(nn.Sigmoid())
         self.sparse_encoder = nn.Sequential(*modules)
         print(f' sparse encoder {self.sparse_encoder}')
-        self.sparse_encoder.to(device)
+        self.sparse_encoder.to(self.device)
         self.extra_relu = nn.ReLU(inplace=True)
-        self.extra_relu.to(device)
+        self.extra_relu.to(self.device)
 
     def forward(self, x):
         x = self.feature_extractor.encode(x)

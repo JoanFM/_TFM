@@ -155,6 +155,11 @@ def extract_all_image_embeddings_and_filenames(image_encoder, batch_size, root, 
     :param split: The split of data to evaluate on (eval, val, train)
     :return:
     """
+    if torch.cuda.is_available():
+        dev = "cuda:0"
+    else:
+        dev = "cpu"
+    device = torch.device(dev)
     image_encoder.feature_extractor.model.eval()
     image_encoder.sparse_encoder.eval()
     image_encoder.eval()
@@ -165,11 +170,13 @@ def extract_all_image_embeddings_and_filenames(image_encoder, batch_size, root, 
     with Bar(f'Indexing images into Sparse Index',
              max=len(image_data_loader)) as image_indexing_bar:
         for batch_id, (filenames, images) in enumerate(image_data_loader):
-            image_embedding = image_encoder.forward(images).detach().numpy()
+            images = images.to(device)
+            image_embedding = image_encoder.forward(images).detach().cpu().numpy()
+            sparse_embedding = csr_matrix(image_embedding)
             if all_image_embeddings is None:
-                all_image_embeddings = csr_matrix(image_embedding)
+                all_image_embeddings = sparse_embedding
             else:
-                all_image_embeddings = csr_vappend(all_image_embeddings, csr_matrix(image_embedding))
+                all_image_embeddings = csr_vappend(all_image_embeddings, sparse_embedding)
             image_filenames.extend(filenames)
             image_indexing_bar.next()
             if batch_id % 100 == 0:
@@ -197,7 +204,7 @@ def analyse(image_encoder, batch_size, root, split_root, split):
 
 
 def run_evaluations(image_encoder, text_encoder, batch_size, root, split_root, split,
-                    top_ks=[5, 10, 20, 100, None]):
+                    top_ks=[5, 10, 20, 30, 40, 50, 100, None]):
     """
     Runs evaluations of an ImageEncoder resulting from some training
 
@@ -242,7 +249,7 @@ def run_evaluations(image_encoder, text_encoder, batch_size, root, split_root, s
              max=len(text_data_loader)) as querying_bar:
         print(colored(f' Query the TFIDF', 'black', 'on_yellow'))
         for batch_id, (filenames, captions) in enumerate(text_data_loader):
-            text_embedding_query = csr_matrix(text_encoder.forward(captions).detach().numpy())
+            text_embedding_query = csr_matrix(text_encoder.forward(captions).detach().cpu().numpy())
             text_embedding_query = tfidf_transformer.transform(text_embedding_query)
             cosine_scores = cosine_similarity(text_embedding_query, image_tfidf_index)
             retrieved_image_filenames = []  # it should be a list of lists
@@ -368,11 +375,13 @@ def train(output_model_path: str,
     device = torch.device(dev)
 
     pos_weight = torch.ones([layers[-1]]) * positive_weights
+    pos_weight = pos_weight.to(device)
     os.makedirs(output_model_path, exist_ok=True)
     image_encoder = ImageEncoder(layer_size=layers)
     text_encoder = TextEncoder(vectorizer_path)
     optimizer = torch.optim.SGD(image_encoder.parameters(), lr=0.5)
     optimizer.zero_grad()
+
     loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
     train_losses_epochs = []
@@ -380,6 +389,12 @@ def train(output_model_path: str,
     test_evals_epochs = []
     val_evals_epochs = []
     train_evals_epochs = []
+
+    print(f' Run evaluation on random model with no training:')
+    run_evaluations(image_encoder, text_encoder,
+                    batch_size, root=DATASET_ROOT_PATH,
+                    split_root=DATASET_SPLIT_ROOT_PATH,
+                    split='test')
 
     with Bar('Epochs', max=num_epochs) as epoch_bar:
 
@@ -410,11 +425,13 @@ def train(output_model_path: str,
                     optimizer.zero_grad()
                     image = image.to(device)
                     image_embedding = image_encoder.forward(image)
-                    l1_regularization = torch.mean(torch.sum(image_embedding, dim=1))
+                    #activations = extra_relu(image_embedding)
+                    #l1_regularization = torch.mean(torch.sum(activations, dim=1))
                     text_embedding = text_encoder.forward(caption).to(device)
                     text_embedding = text_embedding / text_embedding
                     text_embedding[text_embedding != text_embedding] = 0
                     loss = loss_fn(image_embedding, text_embedding)
+                    #print(f' loss {loss} vs l1_reg {l1_regularization} with {csr_matrix(activations.detach().cpu().numpy()).data} and {len(csr_matrix(activations.detach().cpu().numpy()).data)}')
                     train_loss.append(loss.item())
                     loss.backward()
                     optimizer.step()
@@ -544,11 +561,11 @@ def main(*args, **kwargs):
     text_encoder = TextEncoder(vectorizer_path)
     last_layer_size = text_encoder.forward(['test']).shape[1]
     layers = [4096, last_layer_size]
-    mean_positives, mean_negatives, mean_totals = compute_average_positives_in_vocab(vectorizer_path, 'cpu')
-    positive_weights = mean_negatives / mean_positives
-    # positive_weights = 190.2681631496955
-    print(
-        f' mean_positives {mean_positives}, mean_negatives {mean_negatives}, num_totals {mean_negatives} => positive_weights {positive_weights}')
+    # mean_positives, mean_negatives, mean_totals = compute_average_positives_in_vocab(vectorizer_path, 'cpu')
+    # positive_weights = mean_negatives / mean_positives
+    positive_weights = 200
+    # print(
+    #     f' mean_positives {mean_positives}, mean_negatives {mean_negatives}, num_totals {mean_negatives} => positive_weights {positive_weights}')
     train(
         output_model_path=IMAGE_EMBEDDING_BASE_PATH,
         vectorizer_path=vectorizer_path,
