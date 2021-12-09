@@ -13,9 +13,9 @@ os.environ['JINA_LOG_LEVEL'] = 'DEBUG'
 # File where Jina will store the index
 INDEX_FILE_PATH = os.getenv('INDEX_FILE_PATH', 'tmp/sparse_index')
 # Model to expose for indexing, the path where the state_dict of the model is stored
-IMAGE_EMBEDDING_MODEL_PATH = os.getenv('IMAGE_EMBEDDING_MODEL_PATH', '/hdd/master/tfm/output-image-encoders/model-inter-9-final.pt')
+IMAGE_EMBEDDING_MODEL_PATH = os.getenv('IMAGE_EMBEDDING_MODEL_PATH', '/hdd/master/tfm/output-image-encoders/model-final-colab.pt')
 # Text embedding model to expose for querying, the path where the CountVectorizer is stored of the model is stored
-TEXT_EMBEDDING_VECTORIZER_PATH = os.getenv('TEXT_EMBEDDING_VECTORIZER_PATH', 'vectorizer.pkl')
+TEXT_EMBEDDING_VECTORIZER_PATH = os.getenv('TEXT_EMBEDDING_VECTORIZER_PATH', 'count_vectorizer.pkl')
 # The root path where the flickr30k dataset is found
 DATASET_ROOT_PATH = os.getenv('DATASET_ROOT_PATH', '/hdd/master/tfm/flickr30k_images')
 # The root path where the flickr30k entities per split is kept
@@ -28,8 +28,8 @@ class JinaImageEncoder(Executor):
 
     def __init__(self, model_path, vectorizer_path, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._image_encoder = ImageEncoder(layer_size=[4096, 3537])
-        self._image_encoder.load_state_dict(torch.load(model_path))
+        self._image_encoder = ImageEncoder(layer_size=[4096, 3798])
+        self._image_encoder.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
         self._image_encoder.training = False
         text_encoder = TextEncoder(vectorizer_path)
         self._vocab = {v: k for k, v in text_encoder.vectorizer.vocabulary_.items()}

@@ -13,7 +13,7 @@ from src.model import TextEncoder
 from src.dataset import get_data_loader, get_image_data_loader, get_captions_data_loader
 from src.evaluate import evaluate
 from scipy.sparse import csr_matrix
-from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.feature_extraction.text import TfidfTransformer, TfidfVectorizer, CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 cur_dir = os.path.dirname(os.path.abspath(__file__))
@@ -296,6 +296,7 @@ def validation_loop(image_encoder, text_encoder, dataloader, device, loss_fn, tr
 
     :return: The validation loss
     """
+    is_tfidf_vectorizer = isinstance(text_encoder.vectorizer, TfidfVectorizer)
     val_loss = []
     with Bar(f'Validation for training batch {training_batch_id} Batch',
              max=len(dataloader)) as validation_bar:
@@ -306,8 +307,9 @@ def validation_loop(image_encoder, text_encoder, dataloader, device, loss_fn, tr
             image_embedding = image_encoder.forward(image)
             text_embedding = text_encoder.forward(caption)
             text_embedding = text_embedding.to(device)
-            text_embedding = text_embedding / text_embedding
-            text_embedding[text_embedding != text_embedding] = 0
+            if not is_tfidf_vectorizer:
+                text_embedding = text_embedding / text_embedding
+                text_embedding[text_embedding != text_embedding] = 0
             loss = loss_fn(image_embedding, text_embedding)
             val_loss.append(loss.item())
             validation_bar.next()
@@ -392,6 +394,11 @@ def train(output_model_path: str,
     val_evals_epochs = []
     train_evals_epochs = []
     extra_relu = torch.nn.ReLU(inplace=True)
+    is_tfidf_vectorizer = isinstance(text_encoder.vectorizer, TfidfVectorizer)
+    if is_tfidf_vectorizer:
+        print(f' Training with TfidfVectorizer as text vectorizer')
+    else:
+        print(f' Training with CountVectorizer as text vectorizer')
 
     print(f' Run evaluation on random model with no training:')
     run_evaluations(image_encoder, text_encoder,
@@ -431,8 +438,9 @@ def train(output_model_path: str,
                     activations = extra_relu(image_embedding)
                     l1_regularization = torch.mean(torch.sum(activations, dim=1))
                     text_embedding = text_encoder.forward(caption).to(device)
-                    text_embedding = text_embedding / text_embedding
-                    text_embedding[text_embedding != text_embedding] = 0
+                    if not is_tfidf_vectorizer:
+                        text_embedding = text_embedding / text_embedding
+                        text_embedding[text_embedding != text_embedding] = 0
                     loss = loss_fn(image_embedding, text_embedding) + l1_regularization * l1_regularization_weight
                     #print(f' loss {loss} vs l1_reg {l1_regularization}:{l1_regularization_weight*l1_regularization} with  {len(csr_matrix(activations.detach().cpu().numpy()).data)}')
                     train_loss.append(loss.item())
@@ -531,14 +539,14 @@ def main(*args, **kwargs):
             last_layer_size = text_encoder.forward(['test']).shape[1]
             layers = [4096, last_layer_size]
             image_encoder = ImageEncoder(layer_size=layers)
-            image_encoder.load_state_dict(torch.load(path))
+            image_encoder.load_state_dict(torch.load(path, map_location=torch.device('cpu')))
             image_encoder.eval()
             text_encoder = TextEncoder(vectorizer_path)
             run_evaluations(image_encoder, text_encoder,
                             batch_size=16, root=DATASET_ROOT_PATH,
                             split_root=DATASET_SPLIT_ROOT_PATH,
                             split=split,
-                            top_ks=[1, 5, 10, 20, None])
+                            top_ks=[1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 500, None])
             import sys
 
             sys.exit(0)
@@ -560,7 +568,7 @@ def main(*args, **kwargs):
             import sys
             sys.exit(0)
 
-    vectorizer_path = args[2] if len(args) > 2 else TEXT_EMBEDDING_VECTORIZER_PATH
+    vectorizer_path = args[1] if len(args) > 1 else TEXT_EMBEDDING_VECTORIZER_PATH
     text_encoder = TextEncoder(vectorizer_path)
     last_layer_size = text_encoder.forward(['test']).shape[1]
     layers = [4096, last_layer_size]

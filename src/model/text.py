@@ -3,7 +3,7 @@ import sys
 import pickle
 
 import torch
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from src.model.spacy_tokenizer import spacy_tokenizer, query_light_spacy_tokenizer
 
 from src.dataset.dataset import CaptionFlickr30kDataset
@@ -35,7 +35,7 @@ class TextEncoder:
         return torch.Tensor(self.vectorizer.transform(x).toarray())
 
 
-def get_model(min_df=10, max_df=1.0, output_file_path: str = 'vectorizer.pkl'):
+def get_model(min_df=10, max_df=1.0, vectorizer_type='count', output_file_path: str = 'vectorizer.pkl'):
     """
     Given a DataLoader loading only captions fit into a CountVectorizer to obtain the TextEncoder model to use for training
     """
@@ -47,8 +47,11 @@ def get_model(min_df=10, max_df=1.0, output_file_path: str = 'vectorizer.pkl'):
     corpus = [train_dataset[i][1] for i in range(len(train_dataset))]
 
     print(f' Fitting a vectorizer with a corpus of {len(corpus)} sentences with min_df {min_df} and max_df {max_df}')
-    vectorizer = CountVectorizer(tokenizer=spacy_tokenizer, stop_words='english', min_df=min_df, max_df=max_df,
-                                 binary=True)
+    if vectorizer_type == 'count':
+        vectorizer = CountVectorizer(tokenizer=spacy_tokenizer, stop_words='english', min_df=min_df, max_df=max_df,
+                                     binary=True)
+    elif vectorizer_type == 'tfidf':
+        vectorizer = TfidfVectorizer(tokenizer=spacy_tokenizer, stop_words='english', min_df=min_df, max_df=max_df)
     vectorizer.fit(corpus)
     with open(output_file_path, 'wb') as f:
         pickle.dump(vectorizer, f)
@@ -58,5 +61,6 @@ def get_model(min_df=10, max_df=1.0, output_file_path: str = 'vectorizer.pkl'):
 if __name__ == '__main__':
     min_df = int(sys.argv[1])
     max_df = float(sys.argv[2])
-    output_file_path = sys.argv[3] if len(sys.argv) > 3 else f'vectorizer_tokenizer_stop_words_{min_df}_{max_df}.pkl'
-    get_model(min_df, max_df, output_file_path)
+    vectorizer_type = sys.argv[3] if len(sys.argv) > 3 else f'count'
+    output_file_path = sys.argv[4] if len(sys.argv) > 4 else f'vectorizer_tokenizer_stop_words_{min_df}_{max_df}.pkl'
+    get_model(min_df, max_df, vectorizer_type, output_file_path)
