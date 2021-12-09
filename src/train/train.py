@@ -27,7 +27,7 @@ DATASET_ROOT_PATH = os.getenv('DATASET_ROOT_PATH', '/hdd/master/tfm/flickr30k_im
 # The root path where the flickr30k entities per split is kept
 DATASET_SPLIT_ROOT_PATH = os.getenv('DATASET_SPLIT_ROOT_PATH', '/hdd/master/tfm/flickr30k_images/flickr30k_entities')
 
-l1_regularization_weight = 1e-7
+l1_regularization_weight = 1e-3
 
 _ATTRIBUTES = {
     'bold': 1,
@@ -353,7 +353,8 @@ def train(output_model_path: str,
           positive_weights: float = 1.0,
           num_epochs: int = 100,
           batch_size: int = 8,
-          layers: List[int] = [1062]
+          layers: List[int] = [1062],
+          learning_rate: float = 0.5,
           ):
     """
     Train the model to have an image encoder that encodes into sparse embeddings matching the text encoder's outputs
@@ -365,6 +366,7 @@ def train(output_model_path: str,
     :param num_epochs: The number of epochs to run the training for
     :param batch_size: The batch size to load the images from
     :param layers: The size of layers to be added after the dense feature extractor
+    :param learning_rate: The learning rate for the optimizer
 
     :return: Nothing, the outputs are models stored and prints of validation and training loss
     """
@@ -379,7 +381,7 @@ def train(output_model_path: str,
     os.makedirs(output_model_path, exist_ok=True)
     image_encoder = ImageEncoder(layer_size=layers)
     text_encoder = TextEncoder(vectorizer_path)
-    optimizer = torch.optim.SGD(image_encoder.parameters(), lr=0.5)
+    optimizer = torch.optim.SGD(image_encoder.parameters(), lr=learning_rate)
     optimizer.zero_grad()
 
     loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
@@ -389,6 +391,7 @@ def train(output_model_path: str,
     test_evals_epochs = []
     val_evals_epochs = []
     train_evals_epochs = []
+    extra_relu = torch.nn.ReLU(inplace=True)
 
     print(f' Run evaluation on random model with no training:')
     run_evaluations(image_encoder, text_encoder,
@@ -425,13 +428,13 @@ def train(output_model_path: str,
                     optimizer.zero_grad()
                     image = image.to(device)
                     image_embedding = image_encoder.forward(image)
-                    #activations = extra_relu(image_embedding)
-                    #l1_regularization = torch.mean(torch.sum(activations, dim=1))
+                    activations = extra_relu(image_embedding)
+                    l1_regularization = torch.mean(torch.sum(activations, dim=1))
                     text_embedding = text_encoder.forward(caption).to(device)
                     text_embedding = text_embedding / text_embedding
                     text_embedding[text_embedding != text_embedding] = 0
-                    loss = loss_fn(image_embedding, text_embedding)
-                    #print(f' loss {loss} vs l1_reg {l1_regularization} with {csr_matrix(activations.detach().cpu().numpy()).data} and {len(csr_matrix(activations.detach().cpu().numpy()).data)}')
+                    loss = loss_fn(image_embedding, text_embedding) + l1_regularization * l1_regularization_weight
+                    #print(f' loss {loss} vs l1_reg {l1_regularization}:{l1_regularization_weight*l1_regularization} with  {len(csr_matrix(activations.detach().cpu().numpy()).data)}')
                     train_loss.append(loss.item())
                     loss.backward()
                     optimizer.step()
