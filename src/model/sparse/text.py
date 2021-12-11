@@ -4,7 +4,7 @@ import pickle
 
 import torch
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
-from src.model.spacy_tokenizer import spacy_tokenizer, query_light_spacy_tokenizer
+from src.model.sparse.spacy_tokenizer import spacy_tokenizer, query_light_spacy_tokenizer
 
 from src.dataset.dataset import CaptionFlickr30kDataset
 

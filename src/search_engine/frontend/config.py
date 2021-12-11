@@ -1,4 +1,4 @@
-from src.search_engine.jina_application import DATASET_SPLIT_ROOT_PATH, DATASET_ROOT_PATH, DATASET_SPLIT
+from src.search_engine.sparse.jina_application import DATASET_SPLIT_ROOT_PATH, DATASET_ROOT_PATH, DATASET_SPLIT
 
 # Text search
 text_endpoint = "http://0.0.0.0:45678/search"

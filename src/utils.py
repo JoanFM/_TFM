@@ -2,7 +2,7 @@ import os
 import pickle
 
 from sklearn.feature_extraction.text import CountVectorizer
-from src.model.spacy_tokenizer import spacy_tokenizer
+from src.model.sparse.spacy_tokenizer import spacy_tokenizer
 
 from src.dataset.dataset import CaptionFlickr30kDataset
 from src.model import TextEncoder
