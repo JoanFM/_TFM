@@ -10,16 +10,7 @@ import spacy
 
 nlp = spacy.load('en_core_web_sm')
 
-# Load word2vec pre-train model
-
-
 cur_dir = os.path.dirname(os.path.abspath(__file__))
-
-TEXT_EMBEDDING_VECTORIZER_PATH = os.getenv('TEXT_EMBEDDING_VECTORIZER_PATH', 'vectorizer.pkl')
-# The root path where the flickr30k dataset is found
-DATASET_ROOT_PATH = os.getenv('DATASET_ROOT_PATH', '/hdd/master/tfm/flickr30k_images')
-# The root path where the flickr30k entities per split is kept
-DATASET_SPLIT_ROOT_PATH = os.getenv('DATASET_SPLIT_ROOT_PATH', '/hdd/master/tfm/flickr30k_images/flickr30k_entities')
 
 
 class TextEncoder(nn.Module):
@@ -28,6 +19,7 @@ class TextEncoder(nn.Module):
             embd_dim=512,
             model_path='filtered_f30k_word2vec.model',
             output_dim=2048,
+            max_length_tokens=12,
     ):
         super().__init__()
         if torch.cuda.is_available():
@@ -45,6 +37,14 @@ class TextEncoder(nn.Module):
         self.relu.to(self.device)
         self.fc2 = nn.Linear(output_dim, embd_dim)
         self.fc2.to(self.device)
+        self.max_length_tokens = max_length_tokens
+
+    def _zero_pad_tensor_token(self, tensor, size):
+        if len(tensor) >= size:
+            return tensor[:size]
+        else:
+            zero = torch.zeros(size - len(tensor)).long()
+            return torch.cat((tensor, zero), dim=0)
 
     def _words_to_token_ids(self, x):
         def _get_lemma(token):
@@ -52,15 +52,18 @@ class TextEncoder(nn.Module):
                 lower_lemma = token.lemma_.lower()
                 return lower_lemma
 
-        tokens = [self.gensim_model.get_index(_get_lemma(token)) for sent in x for token in nlp(sent)]
+        tokens = [self._zero_pad_tensor_token(
+            torch.LongTensor([self.gensim_model.get_index(_get_lemma(token)) for token in nlp(sent)]),
+            self.max_length_tokens) for sent in x]
+
         return torch.stack(tokens, dim=0)
 
     def forward(self, x):
         x = self._words_to_token_ids(x)
         x = self.word_embd(x)
+        x = torch.mean(x, dim=1)
         x = self.relu(self.fc1(x))
         # what is this torch max?
-        x = torch.max(x, dim=1)[0]
         x = self.fc2(x)
         return x
 
