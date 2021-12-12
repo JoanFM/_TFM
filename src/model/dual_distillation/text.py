@@ -1,19 +1,10 @@
 import os
 import sys
-import pickle
-
-import re
-import gensim
 import torch
 import torch.nn as nn
 import pickle
 
 import numpy as np
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
-from src.model.sparse.spacy_tokenizer import spacy_tokenizer, query_light_spacy_tokenizer
-
-from src.dataset.dataset import CaptionFlickr30kDataset
-import gensim.downloader as api
 from gensim.models import KeyedVectors
 import spacy
 
@@ -89,26 +80,18 @@ def get_word2vec_for_vocabulary(countvectorizer_path: str = 'count_vectorizer.pk
     new_vectors = []
     new_vocab = {}
     new_index2entity = []
-    new_vectors_norm = []
     new_model = original_model
+    words_to_keep = list(vectorizer.vocabulary_.keys())
 
-    for i in range(len(new_model.vocab)):
-        word = new_model.index2entity[i]
-        vec = new_model.vectors[i]
-        vocab = new_model.vocab[word]
-        vec_norm = new_model.vectors_norm[i]
-        if word in vectorizer.:
-            vocab.index = len(new_index2entity)
+    for word, index in original_model.key_to_index.items():
+        if word in words_to_keep:
+            new_vocab[word] = len(new_index2entity)
+            new_vectors.append(original_model.get_vector(word))
             new_index2entity.append(word)
-            new_vocab[word] = vocab
-            new_vectors.append(vec)
-            new_vectors_norm.append(vec_norm)
 
-    new_model.vocab = new_vocab
+    new_model.key_to_index = new_vocab
     new_model.vectors = np.array(new_vectors)
-    new_model.index2entity = np.array(new_index2entity)
-    new_model.index2word = np.array(new_index2entity)
-    new_model.vectors_norm = np.array(new_vectors_norm)
+    new_model.index_to_key = np.array(new_index2entity)
     new_model.save(output_model_path)
 
 
