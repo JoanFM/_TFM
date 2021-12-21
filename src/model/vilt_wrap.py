@@ -2,6 +2,7 @@ import os
 import torch
 from vilt.modules import ViLTransformerSS
 from typing import List
+import time
 
 from transformers import BertTokenizer
 
@@ -82,16 +83,19 @@ if __name__ == '__main__':
         filenames.extend(filenames_batch)
         images.extend(images_batch)
 
+    retrieved_image_filenames = []
     groundtruth_expected_image_filenames = []
+    print(f' number of queries {len(text_dataset)}, against {len(images)}')
     for matching_filename, query in text_dataset:
         filename = matching_filename[0]
-        groundtruth_expected_image_filenames.append(filename)
+        groundtruth_expected_image_filenames.append([filename])
         q = query[0]
+        start = time.time()
         scores = vilt.rank(q, images)
-        break
-    retrieved_image_filenames = [f for _, f in sorted(zip(scores, filenames))]
+        print(f' rank a query against all images in {time.time() - start}s ')
+        retrieved_image_filenames.append([f for _, f in sorted(zip(scores, filenames))])
 
-    evaluate(['recall', 'reciprocal_rank'], [retrieved_image_filenames],
-             [groundtruth_expected_image_filenames],
-             [1, 5, 10, 20, 100, None],
+    evaluate(['recall', 'reciprocal_rank'], retrieved_image_filenames,
+             groundtruth_expected_image_filenames,
+             [1, 5, 10, 20, 100, 200, 500, None],
              {}, print_results=True)

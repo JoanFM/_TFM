@@ -15,7 +15,7 @@ class Flickr30kDataset(data.Dataset):
     """
 
     def __init__(self, root, split_root, split, transform=None):
-        self.images_root = os.path.join(root, 'flickr30k_images')
+        self.images_root = os.path.join(root, 'flickr30k-images')
         with open(os.path.join(split_root, f'{split}.txt'), 'r') as f:
             self.ids = f.read().split('\n')[0: -1]
         self.groups = pd.read_csv(os.path.join(root, 'results.csv'), sep='|').groupby(['image_name'])
