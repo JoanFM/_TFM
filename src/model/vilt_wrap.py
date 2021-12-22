@@ -14,10 +14,12 @@ DATASET_SPLIT_ROOT_PATH = os.getenv('DATASET_SPLIT_ROOT_PATH', '/hdd/master/tfm/
 class ViltModel(ViLTransformerSS):
     def __init__(
             self,
+            config,
             *args,
             **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(config)
+        self._config = config
         if torch.cuda.is_available():
             dev = "cuda:0"
         else:
@@ -30,8 +32,8 @@ class ViltModel(ViLTransformerSS):
     def rank(self, query: str, images: List):
         rank_scores = []
         encoded_input = self.tokenizer(query, return_tensors='pt')
-        input_ids = encoded_input['input_ids']
-        mask = encoded_input['attention_mask']
+        input_ids = encoded_input['input_ids'][:, :self._config['max_text_len']]
+        mask = encoded_input['attention_mask'][:, :self._config['max_text_len']]
         batch = {"text_ids": input_ids.to(self.device), 'text_masks': mask.to(self._device), 'text_labels': None}
         # no masking
         for image in images:
@@ -51,6 +53,7 @@ if __name__ == '__main__':
     conf = copy.deepcopy(config.config())
     conf['load_path'] = 'vilt_irtr_f30k.ckpt'
     conf['test_only'] = True
+    conf['max_text_len'] = 40
 
     # You need to properly configure loss_names to initialize heads (0.5 means it initializes head, but ignores the
     # loss during training)
