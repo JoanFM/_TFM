@@ -55,36 +55,20 @@ class ImageEncoder(nn.Module):
     The Encoder to train that adds a set of Fully Connected Layers expanding from the ouptut of a dense embedding into a sparse one
     """
 
-    def __init__(self, layer_size=None, **kwargs):
+    def __init__(self, common_layer_size=512, **kwargs):
         super().__init__()
         if torch.cuda.is_available():
             dev = "cuda:0"
         else:
             dev = "cpu"
         self.device = torch.device(dev)
-        if layer_size is None:
-            layer_size = [4096, 1062]
         self.feature_extractor = DenseVisualFeatureExtractor(**kwargs)
-        modules = []
-
         previous_layer = self.feature_extractor.output_dim
-        for i, layer in enumerate(layer_size):
-            modules.append(nn.Linear(in_features=previous_layer, out_features=layer))
-            modules.append(nn.ReLU(inplace=True))
-            previous_layer = layer
-        #
-        modules.pop()
-        self.sparse_encoder = nn.Sequential(*modules)
-        print(f' sparse encoder {self.sparse_encoder}')
-        self.sparse_encoder.to(self.device)
-        self.extra_relu = nn.ReLU(inplace=True)
-        self.extra_relu.to(self.device)
+        self.common_space_embedding = nn.Linear(in_features=previous_layer, out_features=common_layer_size)
+        self.common_space_embedding.to(self.device)
 
     def forward(self, x):
         x = self.feature_extractor.encode(x)
         x = x.view(x.size()[0], -1)
-        result = self.sparse_encoder(x)
-        if self.training:
-            return result
-        else:
-            return self.extra_relu(result)
+        result = self.common_space_embedding(x)
+        return result

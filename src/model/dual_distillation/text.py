@@ -52,10 +52,16 @@ class TextEncoder(nn.Module):
                 lower_lemma = token.lemma_.lower()
                 return lower_lemma
 
-        tokens = [self._zero_pad_tensor_token(
-            torch.LongTensor([self.gensim_model.get_index(_get_lemma(token)) for token in nlp(sent)]),
-            self.max_length_tokens) for sent in x]
-
+        tokens = []
+        for sent in x:
+            sent_tokens = []
+            for token in nlp(sent):
+                try:
+                    sent_tokens.append(self.gensim_model.get_index(_get_lemma(token)))
+                except:
+                    continue
+            tokens.append(self._zero_pad_tensor_token(
+                        torch.LongTensor(sent_tokens), self.max_length_tokens))
         return torch.stack(tokens, dim=0)
 
     def forward(self, x):

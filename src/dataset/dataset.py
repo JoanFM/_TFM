@@ -91,10 +91,10 @@ class ImageCaptionFlickr30kDataset(Flickr30kDataset):
 
 
 def get_data_loader(root, split_root, split, batch_size=8, shuffle=False,
-                    num_workers=1):
+                    num_workers=1, **kwargs):
     """Returns torch.utils.data.DataLoader for custom coco dataset."""
 
-    dataset = ImageCaptionFlickr30kDataset(root=root, split_root=split_root, split=split)
+    dataset = ImageCaptionFlickr30kDataset(root=root, split_root=split_root, split=split, **kwargs)
     # Data loader
     data_loader = torch.utils.data.DataLoader(dataset=dataset,
                                               batch_size=batch_size,
@@ -106,10 +106,10 @@ def get_data_loader(root, split_root, split, batch_size=8, shuffle=False,
 
 
 def get_image_data_loader(root, split_root, split, batch_size=8, shuffle=False,
-                          num_workers=1):
+                          num_workers=1, **kwargs):
     """Returns torch.utils.data.DataLoader for custom coco dataset."""
 
-    dataset = ImageFlickr30kDataset(root=root, split_root=split_root, split=split)
+    dataset = ImageFlickr30kDataset(root=root, split_root=split_root, split=split, **kwargs)
     # Data loader
     data_loader = torch.utils.data.DataLoader(dataset=dataset,
                                               batch_size=batch_size,
@@ -121,10 +121,10 @@ def get_image_data_loader(root, split_root, split, batch_size=8, shuffle=False,
 
 
 def get_captions_data_loader(root, split_root, split, batch_size=8, shuffle=False,
-                             num_workers=1):
+                             num_workers=1, **kwargs):
     """Returns torch.utils.data.DataLoader for custom coco dataset."""
 
-    dataset = CaptionFlickr30kDataset(root=root, split_root=split_root, split=split)
+    dataset = CaptionFlickr30kDataset(root=root, split_root=split_root, split=split, **kwargs)
     # Data loader
     data_loader = torch.utils.data.DataLoader(dataset=dataset,
                                               batch_size=batch_size,
