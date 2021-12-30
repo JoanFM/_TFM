@@ -7,13 +7,13 @@ from typing import List, Optional, Union
 import numpy as np
 from progress.bar import Bar
 
-from src.model import ImageEncoder
-from src.model import TextEncoder
+from src.model.sparse.image import ImageEncoder
+from src.model.sparse.text import TextEncoder
 
-from src.dataset import get_data_loader, get_image_data_loader, get_captions_data_loader
+from src.dataset import get_concatenated_captions_image_data_loader, get_image_data_loader, get_captions_data_loader
 from src.evaluate import evaluate
 from scipy.sparse import csr_matrix
-from sklearn.feature_extraction.text import TfidfTransformer, TfidfVectorizer, CountVectorizer
+from sklearn.feature_extraction.text import TfidfTransformer, TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 cur_dir = os.path.dirname(os.path.abspath(__file__))
@@ -219,68 +219,71 @@ def run_evaluations(image_encoder, text_encoder, batch_size, root, split_root, s
     """
     print(colored('#' * 70, 'black', 'on_red'))
     print(colored(f'{split} EVALUATION text2Image retrieval start ', 'black', 'on_red'))
-    query_batch_size = 1000
-    eval_start = time.time()
-    all_image_embeddings, image_filenames = extract_all_image_embeddings_and_filenames(image_encoder, batch_size, root,
-                                                                                       split_root, split)
+    image_encoder.feature_extractor.model.eval()
+    image_encoder.sparse_encoder.eval()
+    with torch.no_grad():
+        query_batch_size = 1000
+        eval_start = time.time()
+        all_image_embeddings, image_filenames = extract_all_image_embeddings_and_filenames(image_encoder, batch_size, root,
+                                                                                           split_root, split)
 
-    print(colored(f'\n Image embeddings collected in {time.time() - eval_start}s', 'black', 'on_yellow'))
+        print(colored(f'\n Image embeddings collected in {time.time() - eval_start}s', 'black', 'on_yellow'))
 
-    fit_start = time.time()
-    print(colored(f'\n Fit transform a TFIDFTransformer with the images in the collection', 'black', 'on_yellow'))
-    tfidf_transformer = TfidfTransformer()
-    image_tfidf_index = tfidf_transformer.fit_transform(all_image_embeddings)
-    print(colored(f'\n TFIDF Transform fitting finished in {time.time() - fit_start}s', 'black', 'on_yellow'))
-    analyse_start = time.time()
-    print(colored(f'\n Analyse computed index', 'black', 'on_yellow'))
-    analyse_index(image_tfidf_index)
-    print(colored(f'\n Analysis on computed index done in {time.time() - analyse_start}', 'black', 'on_yellow'))
-    all_image_embeddings = None
-    image_encoder = None
+        fit_start = time.time()
+        print(colored(f'\n Fit transform a TFIDFTransformer with the images in the collection', 'black', 'on_yellow'))
+        tfidf_transformer = TfidfTransformer()
+        image_tfidf_index = tfidf_transformer.fit_transform(all_image_embeddings)
+        print(colored(f'\n TFIDF Transform fitting finished in {time.time() - fit_start}s', 'black', 'on_yellow'))
+        analyse_start = time.time()
+        print(colored(f'\n Analyse computed index', 'black', 'on_yellow'))
+        analyse_index(image_tfidf_index)
+        print(colored(f'\n Analysis on computed index done in {time.time() - analyse_start}', 'black', 'on_yellow'))
+        all_image_embeddings = None
+        image_encoder = None
 
-    accum_evaluation_results = {}  # {'metric': {'sum': 0, 'num': 0}
+        accum_evaluation_results = {}  # {'metric': {'sum': 0, 'num': 0}
 
-    querying_start = time.time()
-    num_buckets_query = []
-    text_data_loader = get_captions_data_loader(root=root, split_root=split_root, split=split,
-                                                batch_size=query_batch_size)
+        querying_start = time.time()
+        num_buckets_query = []
+        text_data_loader = get_captions_data_loader(root=root, split_root=split_root, split=split,
+                                                    batch_size=query_batch_size)
 
-    with Bar(f'Querying Image Sparse Index with text',
-             max=len(text_data_loader)) as querying_bar:
-        print(colored(f' Query the TFIDF', 'black', 'on_yellow'))
-        for batch_id, (filenames, captions) in enumerate(text_data_loader):
-            text_embedding_query = csr_matrix(text_encoder.forward(captions).detach().cpu().numpy())
-            text_embedding_query = tfidf_transformer.transform(text_embedding_query)
-            cosine_scores = cosine_similarity(text_embedding_query, image_tfidf_index)
-            retrieved_image_filenames = []  # it should be a list of lists
-            groundtruth_expected_image_filenames = []  # it should be a list of lists
-            for i in range(text_embedding_query.shape[0]):
-                num_buckets_query.append(len(text_embedding_query.getrow(i).indices))
-                results = [filename for filename, score in
-                           sorted(zip(image_filenames, cosine_scores[i]), key=lambda pair: pair[1], reverse=True)]
-                retrieved_image_filenames.append(results)
-                groundtruth_expected_image_filenames.append([filenames[i]])
-            evaluate(['recall', 'reciprocal_rank'], retrieved_image_filenames,
-                     groundtruth_expected_image_filenames,
-                     top_ks,
-                     accum_evaluation_results, print_results=False)
+        with Bar(f'Querying Image Sparse Index with text',
+                 max=len(text_data_loader)) as querying_bar:
+            print(colored(f' Query the TFIDF', 'black', 'on_yellow'))
+            for batch_id, (filenames, captions) in enumerate(text_data_loader):
+                text_embedding_query = csr_matrix(text_encoder.forward(captions).detach().cpu().numpy())
+                text_embedding_query = tfidf_transformer.transform(text_embedding_query)
+                cosine_scores = cosine_similarity(text_embedding_query, image_tfidf_index)
+                retrieved_image_filenames = []  # it should be a list of lists
+                groundtruth_expected_image_filenames = []  # it should be a list of lists
+                for i in range(text_embedding_query.shape[0]):
+                    num_buckets_query.append(len(text_embedding_query.getrow(i).indices))
+                    results = [filename for filename, score in
+                               sorted(zip(image_filenames, cosine_scores[i]), key=lambda pair: pair[1], reverse=True)]
+                    retrieved_image_filenames.append(results)
+                    groundtruth_expected_image_filenames.append([filenames[i]])
+                evaluate(['recall', 'reciprocal_rank'], retrieved_image_filenames,
+                         groundtruth_expected_image_filenames,
+                         top_ks,
+                         accum_evaluation_results, print_results=False)
 
-            if batch_id % 100 == 0:
-                print(
-                    f' Queried {query_batch_size * (batch_id + 1)} captions out of {len(text_data_loader) * query_batch_size}')
-            querying_bar.next()
+                if batch_id % 100 == 0:
+                    print(
+                        f' Queried {query_batch_size * (batch_id + 1)} captions out of {len(text_data_loader) * query_batch_size}')
+                querying_bar.next()
 
-    print(colored(f' Results collected in {time.time() - querying_start}s', 'black', 'on_yellow'))
-    compute_start = time.time()
+        print(colored(f' Results collected in {time.time() - querying_start}s', 'black', 'on_yellow'))
+        compute_start = time.time()
 
-    t2i_evaluations = {k: v['sum'] / v['num'] for k, v in accum_evaluation_results.items()}
-    print(colored(f' Evaluation computed in {time.time() - compute_start}s', 'black', 'on_yellow'))
+        t2i_evaluations = {k: v['sum'] / v['num'] for k, v in accum_evaluation_results.items()}
+        print(colored(f' Evaluation computed in {time.time() - compute_start}s', 'black', 'on_yellow'))
 
-    print(colored('#' * 70, 'black', 'on_red'))
-    print(colored(f'RESULTS of {split} EVALUATION text2Image retrieval: {t2i_evaluations}', 'black', 'on_red'))
-    print(colored(f' Average number of buckets for query {np.average(num_buckets_query)}', 'black', 'on_red'))
-    print(colored(f'Total run_evaluation time elapsed:\t {time.time() - eval_start}s', 'black', 'on_red'))
-    return t2i_evaluations
+        print(colored('#' * 70, 'black', 'on_red'))
+        print(colored(f'RESULTS of {split} EVALUATION text2Image retrieval: {t2i_evaluations}', 'black', 'on_red'))
+        print(colored(f' Average number of buckets for query {np.average(num_buckets_query)}', 'black', 'on_red'))
+        print(colored(f'Total run_evaluation time elapsed:\t {time.time() - eval_start}s', 'black', 'on_red'))
+        return t2i_evaluations
 
 
 def validation_loop(image_encoder, text_encoder, dataloader, device, loss_fn, training_batch_id):
@@ -296,25 +299,26 @@ def validation_loop(image_encoder, text_encoder, dataloader, device, loss_fn, tr
 
     :return: The validation loss
     """
-    is_tfidf_vectorizer = isinstance(text_encoder.vectorizer, TfidfVectorizer)
-    val_loss = []
-    with Bar(f'Validation for training batch {training_batch_id} Batch',
-             max=len(dataloader)) as validation_bar:
-        for batch_id, (_, image, caption) in enumerate(dataloader):
-            image_encoder.feature_extractor.model.eval()
-            image_encoder.sparse_encoder.eval()
-            image = image.to(device)
-            image_embedding = image_encoder.forward(image)
-            text_embedding = text_encoder.forward(caption)
-            text_embedding = text_embedding.to(device)
-            if not is_tfidf_vectorizer:
-                text_embedding = text_embedding / text_embedding
-                text_embedding[text_embedding != text_embedding] = 0
-            loss = loss_fn(image_embedding, text_embedding)
-            val_loss.append(loss.item())
-            validation_bar.next()
+    image_encoder.feature_extractor.model.eval()
+    image_encoder.sparse_encoder.eval()
+    with torch.no_grad():
+        is_tfidf_vectorizer = isinstance(text_encoder.vectorizer, TfidfVectorizer)
+        val_loss = []
+        with Bar(f'Validation for training batch {training_batch_id} Batch',
+                 max=len(dataloader)) as validation_bar:
+            for batch_id, (_, image, caption) in enumerate(dataloader):
+                image = image.to(device)
+                image_embedding = image_encoder.forward(image)
+                text_embedding = text_encoder.forward(caption)
+                text_embedding = text_embedding.to(device)
+                if not is_tfidf_vectorizer:
+                    text_embedding = text_embedding / text_embedding
+                    text_embedding[text_embedding != text_embedding] = 0
+                loss = loss_fn(image_embedding, text_embedding)
+                val_loss.append(loss.item())
+                validation_bar.next()
 
-    return val_loss
+        return val_loss
 
 
 def compute_average_positives_in_vocab(vectorizer_path,
@@ -328,11 +332,11 @@ def compute_average_positives_in_vocab(vectorizer_path,
     """
     batch_size = 1
     text_encoder = TextEncoder(vectorizer_path)
-    train_data_loader = get_data_loader(root=DATASET_ROOT_PATH,
-                                        split_root=DATASET_SPLIT_ROOT_PATH,
-                                        split='train',
-                                        shuffle=True,
-                                        batch_size=batch_size)
+    train_data_loader = get_concatenated_captions_image_data_loader(root=DATASET_ROOT_PATH,
+                                                                    split_root=DATASET_SPLIT_ROOT_PATH,
+                                                                    split='train',
+                                                                    shuffle=True,
+                                                                    batch_size=batch_size)
 
     num_positives = []
     num_negatives = []
@@ -409,17 +413,17 @@ def train(output_model_path: str,
     with Bar('Epochs', max=num_epochs) as epoch_bar:
 
         for epoch in range(num_epochs):
-            train_data_loader = get_data_loader(root=DATASET_ROOT_PATH,
-                                                split_root=DATASET_SPLIT_ROOT_PATH,
-                                                split='train',
-                                                shuffle=True,
-                                                batch_size=batch_size)
+            train_data_loader = get_concatenated_captions_image_data_loader(root=DATASET_ROOT_PATH,
+                                                                            split_root=DATASET_SPLIT_ROOT_PATH,
+                                                                            split='train',
+                                                                            shuffle=True,
+                                                                            batch_size=batch_size)
 
-            val_data_loader = get_data_loader(root=DATASET_ROOT_PATH,
-                                              split_root=DATASET_SPLIT_ROOT_PATH,
-                                              split='val',
-                                              shuffle=True,
-                                              batch_size=batch_size)
+            val_data_loader = get_concatenated_captions_image_data_loader(root=DATASET_ROOT_PATH,
+                                                                          split_root=DATASET_SPLIT_ROOT_PATH,
+                                                                          split='val',
+                                                                          shuffle=True,
+                                                                          batch_size=batch_size)
 
             train_loss = []
             epoch_start = time.time()
@@ -442,7 +446,8 @@ def train(output_model_path: str,
                         text_embedding = text_embedding / text_embedding
                         text_embedding[text_embedding != text_embedding] = 0
                     loss = loss_fn(image_embedding, text_embedding) + l1_regularization * l1_regularization_weight
-                    #print(f' loss {loss} vs l1_reg {l1_regularization}:{l1_regularization_weight*l1_regularization} with  {len(csr_matrix(activations.detach().cpu().numpy()).data)}')
+                    # print(f' loss {loss} vs l1_reg {l1_regularization}:{l1_regularization_weight*l1_regularization}
+                    # with  {len(csr_matrix(activations.detach().cpu().numpy()).data)}')
                     train_loss.append(loss.item())
                     loss.backward()
                     optimizer.step()

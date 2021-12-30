@@ -3,8 +3,7 @@ import numpy as np
 import torch.nn as nn
 
 
-class DenseVisualFeatureExtractor:
-
+class DenseVisualFeatureExtractor(nn.Module):
     """
     The class in charge of extracting the dense features from a pretrained model
     """
@@ -31,7 +30,7 @@ class DenseVisualFeatureExtractor:
         random_image_array = np.random.random((8, 3, 224, 224))
         content = torch.Tensor(random_image_array)
         content = content.to(self.device)
-        return self.encode(content).shape[1]
+        return self(content).shape[1]
 
     def _get_features(self, content):
         feature_map = None
@@ -46,8 +45,8 @@ class DenseVisualFeatureExtractor:
 
         return feature_map
 
-    def encode(self, content, *args, **kwargs):
-        return self._get_features(content)
+    def forward(self, x):
+        return self._get_features(x)
 
 
 class ImageEncoder(nn.Module):
@@ -68,7 +67,7 @@ class ImageEncoder(nn.Module):
         self.common_space_embedding.to(self.device)
 
     def forward(self, x):
-        x = self.feature_extractor.encode(x)
+        x = self.feature_extractor(x)
         x = x.view(x.size()[0], -1)
         result = self.common_space_embedding(x)
         return result

@@ -8,25 +8,28 @@ import torch.utils.data as data
 
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 
+DEFAULT_TRANSFORM = torchvision.transforms.Compose([
+    torchvision.transforms.ToTensor(),
+    torchvision.transforms.Resize((224, 224)),
+    torchvision.transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225],
+    )])
+
+TO_TENSOR_TRANSFORM = torchvision.transforms.ToTensor()
+
 
 class Flickr30kDataset(data.Dataset):
     """
     Dataset loader for Flickr30k full datasets.
     """
 
-    def __init__(self, root, split_root, split, transform=None):
+    def __init__(self, root, split_root, split, transform=None, **kwargs):
         self.images_root = os.path.join(root, 'flickr30k-images')
         with open(os.path.join(split_root, f'{split}.txt'), 'r') as f:
             self.ids = f.read().split('\n')[0: -1]
         self.groups = pd.read_csv(os.path.join(root, 'results.csv'), sep='|').groupby(['image_name'])
-        self.transform = transform or torchvision.transforms.Compose([
-            torchvision.transforms.ToTensor(),
-            torchvision.transforms.Resize((224, 224)),
-            torchvision.transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225],
-            ),
-        ])
+        self.transform = transform or DEFAULT_TRANSFORM
         self.images_length = len(self.ids)
         self.captions_length = self.images_length * 5
 
@@ -57,6 +60,7 @@ class CaptionFlickr30kDataset(Flickr30kDataset):
     """
     Dataset loader for Flickr30k full datasets.
     """
+
     def __init__(self, root, *args, **kwargs):
         super().__init__(root=root, *args, **kwargs)
         self.df = pd.read_csv(os.path.join(root, 'results.csv'), sep='|')
@@ -77,6 +81,37 @@ class ImageCaptionFlickr30kDataset(Flickr30kDataset):
     Dataset loader for Flickr30k full datasets.
     """
 
+    def __init__(self, root, *args, **kwargs):
+        super().__init__(root=root, *args, **kwargs)
+        self.df = pd.read_csv(os.path.join(root, 'results.csv'), sep='|')
+        self.filenames = [f'{i}.jpg' for i in self.ids]
+        self.df = self.df[self.df['image_name'].isin(self.filenames)]
+        self.captions = self.df[' comment'].values
+        self.matching_filenames = self.df['image_name'].values
+        self.transform = None
+
+    def _get_image(self, filename):
+        image_file_path = os.path.join(self.images_root, filename)
+        img = Image.open(image_file_path).convert('RGB')
+        if self.transform is not None:
+            img = self.transform(img)
+        return img
+
+    def __getitem__(self, index):
+        matching_filename = self.matching_filenames[index]
+        caption = self.captions[index]
+        positive_img = self._get_image(matching_filename)
+        return matching_filename, positive_img, caption
+
+    def __len__(self):
+        return self.captions_length
+
+
+class ImageConcatenatedCaptionsFlickr30kDataset(Flickr30kDataset):
+    """
+    Dataset loader for Flickr30k full datasets.
+    """
+
     def __getitem__(self, index):
         image_id_index = int(index)
         filename = f'{self.ids[image_id_index]}.jpg'
@@ -90,8 +125,24 @@ class ImageCaptionFlickr30kDataset(Flickr30kDataset):
         return self.images_length
 
 
-def get_data_loader(root, split_root, split, batch_size=8, shuffle=False,
-                    num_workers=1, **kwargs):
+def get_concatenated_captions_image_data_loader(root, split_root, split, batch_size=8, shuffle=False,
+                                                num_workers=1, **kwargs):
+    """Returns torch.utils.data.DataLoader for custom coco dataset."""
+
+    dataset = ImageConcatenatedCaptionsFlickr30kDataset(root=root, split_root=split_root, split=split, **kwargs)
+    # Data loader
+    data_loader = torch.utils.data.DataLoader(dataset=dataset,
+                                              batch_size=batch_size,
+                                              shuffle=shuffle,
+                                              pin_memory=True,
+                                              num_workers=num_workers,
+                                              collate_fn=kwargs['collate_fn'] if 'collate_fn' in kwargs else None)
+
+    return data_loader
+
+
+def get_captions_image_data_loader(root, split_root, split, batch_size=8, shuffle=False,
+                                   num_workers=1, **kwargs):
     """Returns torch.utils.data.DataLoader for custom coco dataset."""
 
     dataset = ImageCaptionFlickr30kDataset(root=root, split_root=split_root, split=split, **kwargs)
@@ -100,7 +151,8 @@ def get_data_loader(root, split_root, split, batch_size=8, shuffle=False,
                                               batch_size=batch_size,
                                               shuffle=shuffle,
                                               pin_memory=True,
-                                              num_workers=num_workers)
+                                              num_workers=num_workers,
+                                              collate_fn=kwargs['collate_fn'] if 'collate_fn' in kwargs else None)
 
     return data_loader
 
@@ -110,12 +162,16 @@ def get_image_data_loader(root, split_root, split, batch_size=8, shuffle=False,
     """Returns torch.utils.data.DataLoader for custom coco dataset."""
 
     dataset = ImageFlickr30kDataset(root=root, split_root=split_root, split=split, **kwargs)
+
+    if 'force_transform_to_none' in kwargs:
+        dataset.transform = None
     # Data loader
     data_loader = torch.utils.data.DataLoader(dataset=dataset,
                                               batch_size=batch_size,
                                               shuffle=shuffle,
                                               pin_memory=True,
-                                              num_workers=num_workers)
+                                              num_workers=num_workers,
+                                              collate_fn=kwargs['collate_fn'] if 'collate_fn' in kwargs else None)
 
     return data_loader
 
@@ -130,6 +186,7 @@ def get_captions_data_loader(root, split_root, split, batch_size=8, shuffle=Fals
                                               batch_size=batch_size,
                                               shuffle=shuffle,
                                               pin_memory=True,
-                                              num_workers=num_workers)
+                                              num_workers=num_workers,
+                                              collate_fn=kwargs['collate_fn'] if 'collate_fn' in kwargs else None)
 
     return data_loader
