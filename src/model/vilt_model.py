@@ -44,8 +44,8 @@ class ViltModel(ViLTransformerSS):
                                          max_length=self._config['max_text_len'],
                                          truncation=True)
         texts_dict = {
-            'text_ids': tokenized_texts['input_ids'],
-            'text_masks': tokenized_texts['attention_mask'],
+            'text_ids': tokenized_texts['input_ids'].to(self._device),
+            'text_masks': tokenized_texts['attention_mask'].to(self._device),
             'text_labels': [None]
         }
         return texts_dict
@@ -57,7 +57,7 @@ class ViltModel(ViLTransformerSS):
     def score_image_vs_tokenized_texts(self, image: torch.Tensor, texts_dict: List[str]):
         fblen = len(texts_dict['text_ids'])
         (ie, im, _, _) = self.transformer.visual_embed(
-            image.unsqueeze(0).to(self.device),
+            image.unsqueeze(0).to(self._device),
             max_image_len=-1,
             mask_it=False,
         )

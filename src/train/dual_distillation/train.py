@@ -132,13 +132,13 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
 
         all_image_embeddings = []
         image_filenames = []
-        original_images = []
+        pixel_bert_transformed_images = []
         with Bar(f'Computing the embedding of all the images',
                  max=len(image_data_loader)) as image_embedding_bar:
             for batch_id, (filenames, images) in enumerate(image_data_loader):
-                original_images.extend(images)
                 image_tensors = []
                 for i in images:
+                    pixel_bert_transformed_images.append(vilt_transform(i).to(device))
                     image_tensors.append(dual_encoder_transform(i))
 
                 images_embeddings = image_encoder(torch.stack(image_tensors).to(device)).to(device)
@@ -155,14 +155,14 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
         groundtruth_expected_image_filenames = []
         queries = []
         with Bar(f'Computing dot products for every query',
-                 max=len(text_data_loader)) as query_bar:
+                 max=len(text_data_loader)) as dot_prod_bar:
             for batch_id, (filenames, captions) in enumerate(text_data_loader):
                 texts_embeddings = text_encoder(captions).to(device)
                 d_product = texts_embeddings.matmul(all_image_embeddings.T)
                 dot_products.append(d_product)
                 groundtruth_expected_image_filenames.extend(filenames)
                 queries.extend(captions)
-                query_bar.next()
+                dot_prod_bar.next()
         dot_products = torch.cat(dot_products)
         assert dot_products.shape[0] == len(groundtruth_expected_image_filenames)  # 1 matching filename for caption query
         assert dot_products.shape[1] == len(image_filenames)
@@ -175,20 +175,24 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
                 for i, (query, dot_prod) in enumerate(zip(queries, dot_products)):
                     now = time.time()
                     list_scores = dot_prod.cpu().detach().numpy().tolist()
-                    assert len(list_scores) == len(original_images)
-                    sorted_images_indices = [i for _, i in sorted(zip(list_scores, range(len(original_images))), reverse=True)]
+                    assert len(list_scores) == len(pixel_bert_transformed_images)
+                    sorted_images_indices = [i for _, i in sorted(zip(list_scores, range(len(pixel_bert_transformed_images))), reverse=True)]
                     candidate_images_indices = sorted_images_indices[:first_phase_top_k]
                     non_candidate_images_indices = sorted_images_indices[first_phase_top_k:]
-                    candidate_images = [vilt_transform(original_images[i]).to(device) for i in candidate_images_indices]
+                    candidate_images = [pixel_bert_transformed_images[i] for i in candidate_images_indices]
                     pre_score = time.time()
                     scores = vilt_model.rank_query_vs_images(query, candidate_images)
-                    print(f' Computing the score for {len(candidate_images)} took {time.time() - pre_score}s')
+                    if i % 50 == 0:
+                        print(f' Computing the score for {len(candidate_images)} took {time.time() - pre_score}s')
                     best_indices = [i for _, i in sorted(zip(scores, range(len(scores))), reverse=True)]
                     resulting_filenames = [image_filenames[candidate_images_indices[i]] for i in best_indices]
+                    if i % 50 == 0:
+                        print(f' groundtruth {groundtruth_expected_image_filenames[i]} in resulting {resulting_filenames}')
                     resulting_filenames.extend([image_filenames[i] for i in non_candidate_images_indices])
                     retrieved_image_filenames.append(resulting_filenames)
                     query_bar.next()
-                    print(f' Computing the reranking for a single query took {time.time() - now}s')
+                    if i % 50 == 0:
+                        print(f' Computing the re-ranking for a single query took {time.time() - now}s')
 
             t2i_evaluations = evaluate(['recall', 'reciprocal_rank'], retrieved_image_filenames,
                                        groundtruth_expected_image_filenames,
