@@ -113,7 +113,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
     if top_ks is None:
         top_ks = [5, 10]
     if top_k_first_phase is None:
-        top_k_first_phase = [50, 10]
+        top_k_first_phase = [10]
     if torch.cuda.is_available():
         dev = "cuda:0"
     else:
@@ -180,7 +180,9 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
                     candidate_images_indices = sorted_images_indices[:first_phase_top_k]
                     non_candidate_images_indices = sorted_images_indices[first_phase_top_k:]
                     candidate_images = [vilt_transform(original_images[i]).to(device) for i in candidate_images_indices]
+                    pre_score = time.time()
                     scores = vilt_model.rank_query_vs_images(query, candidate_images)
+                    print(f' Computing the score for {len(candidate_images)} took {time.time() - pre_score}s')
                     best_indices = [i for _, i in sorted(zip(scores, range(len(scores))), reverse=True)]
                     resulting_filenames = [image_filenames[candidate_images_indices[i]] for i in best_indices]
                     resulting_filenames.extend([image_filenames[i] for i in non_candidate_images_indices])

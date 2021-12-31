@@ -66,6 +66,7 @@ class TextEncoder(nn.Module):
 
     def forward(self, x):
         x = self._words_to_token_ids(x)
+        x = x.to(self.device)
         x = self.word_embd(x)
         x = self.relu(self.fc1(x))
         x = torch.max(x, dim=1)[0]
