@@ -376,7 +376,7 @@ def train(output_model_path: str,
           num_epochs: int = 100,
           batch_size: int = 8,
           negative_batch_size: int = 4,
-          learning_rate: float = 0.5,
+          learning_rate: float = 0.001,
           temperature=10
           ):
     """
@@ -429,7 +429,9 @@ def train(output_model_path: str,
         r = torch.cuda.memory_reserved(0)/1024/1024/1024
         a = torch.cuda.memory_allocated(0)/1024/1024/1024
         print(f'After moving models to GPU total_memory {t} GB, reserved {r} GB, allocated {a} GB')
-    optimizer = torch.optim.SGD(image_encoder.parameters(), lr=learning_rate)
+
+    params = list(image_encoder.parameters()) + list(text_encoder.parameters())
+    optimizer = torch.optim.Adam(params, lr=learning_rate)
     optimizer.zero_grad()
 
     train_losses_epochs = []
