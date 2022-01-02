@@ -26,18 +26,18 @@ class TextEncoder(nn.Module):
             dev = "cuda:0"
         else:
             dev = "cpu"
-        self.device = torch.device(dev)
+        self._device = torch.device(dev)
         self.gensim_model = KeyedVectors.load(model_path)
         weights = torch.FloatTensor(self.gensim_model.vectors)
         self.word_embd = nn.Embedding.from_pretrained(weights)
-        self.word_embd.to(self.device)
         self.fc1 = nn.Linear(self.word_embd.embedding_dim, output_dim)
-        self.fc1.to(self.device)
         self.relu = nn.ReLU(inplace=True)
-        self.relu.to(self.device)
         self.fc2 = nn.Linear(output_dim, embd_dim)
-        self.fc2.to(self.device)
         self.max_length_tokens = max_length_tokens
+
+    @property
+    def in_cuda(self):
+        return next(self.parameters()).is_cuda
 
     def _zero_pad_tensor_token(self, tensor, size):
         if len(tensor) >= size:
@@ -61,12 +61,13 @@ class TextEncoder(nn.Module):
                 except:
                     continue
             tokens.append(self._zero_pad_tensor_token(
-                        torch.LongTensor(sent_tokens), self.max_length_tokens))
+                torch.LongTensor(sent_tokens), self.max_length_tokens))
         return torch.stack(tokens, dim=0)
 
     def forward(self, x):
         x = self._words_to_token_ids(x)
-        x = x.to(self.device)
+        if self.in_cuda:
+            x = x.to(self._device)
         x = self.word_embd(x)
         x = self.relu(self.fc1(x))
         x = torch.max(x, dim=1)[0]

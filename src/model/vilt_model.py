@@ -22,17 +22,26 @@ class ViltModel(ViLTransformerSS):
         self._device = torch.device(dev)
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         self.eval()
-        self.to(self._device)
+
+    @property
+    def in_cuda(self):
+        return next(self.parameters()).is_cuda
 
     def rank_query_vs_images(self, query: str, images: List):
         rank_scores = []
         encoded_input = self.tokenizer(query, return_tensors='pt')
         input_ids = encoded_input['input_ids'][:, :self._config['max_text_len']]
         mask = encoded_input['attention_mask'][:, :self._config['max_text_len']]
-        batch = {'text_ids': input_ids.to(self.device), 'text_masks': mask.to(self._device), 'text_labels': None}
+        in_cuda = self.in_cuda
+        if in_cuda:
+            input_ids = input_ids.to(self._device)
+            mask = mask.to(self._device)
+        batch = {'text_ids': input_ids, 'text_masks': mask, 'text_labels': None}
         # no masking
         for image in images:
-            batch['image'] = [image.to(self._device).unsqueeze(0)]
+            if in_cuda:
+                image = image.to(self._device)
+            batch['image'] = [image.unsqueeze(0)]
             score = self.rank_output(self.infer(batch)['cls_feats'])[:, 0]
             rank_scores.append(score.detach().cpu().item())
         return rank_scores
@@ -43,9 +52,13 @@ class ViltModel(ViLTransformerSS):
                                          padding='max_length',
                                          max_length=self._config['max_text_len'],
                                          truncation=True)
+        in_cuda = self.in_cuda
+        if in_cuda:
+            tokenized_texts['input_ids'] = tokenized_texts['input_ids'].to(self._device)
+            tokenized_texts['attention_mask'] = tokenized_texts['attention_mask'].to(self._device)
         texts_dict = {
-            'text_ids': tokenized_texts['input_ids'].to(self._device),
-            'text_masks': tokenized_texts['attention_mask'].to(self._device),
+            'text_ids': tokenized_texts['input_ids'],
+            'text_masks': tokenized_texts['attention_mask'],
             'text_labels': [None]
         }
         return texts_dict
@@ -57,7 +70,7 @@ class ViltModel(ViLTransformerSS):
     def score_image_vs_tokenized_texts(self, image: torch.Tensor, texts_dict: List[str]):
         fblen = len(texts_dict['text_ids'])
         (ie, im, _, _) = self.transformer.visual_embed(
-            image.unsqueeze(0).to(self._device),
+            image.unsqueeze(0),
             max_image_len=-1,
             mask_it=False,
         )

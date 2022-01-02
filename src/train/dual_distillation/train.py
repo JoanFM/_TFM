@@ -100,6 +100,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
     """
     Runs evaluations of an ImageEncoder resulting from some training
 
+    :param top_k_first_phase:
     :param image_encoder: The ImageEncoder to extract the embeddings from where to compute evaluation
     :param text_encoder: The TextEncoder to extract the embeddings from where to compute evaluation
     :param vilt_model: The ViLT model to compute the last step of the reranking with the top-k candidates
@@ -115,9 +116,9 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
     if top_k_first_phase is None:
         top_k_first_phase = [10]
     if torch.cuda.is_available():
-        dev = "cuda:0"
+        dev = 'cuda:0'
     else:
-        dev = "cpu"
+        dev = 'cpu'
     device = torch.device(dev)
     image_encoder.train(False)
     image_encoder.feature_extractor.train(False)
@@ -133,7 +134,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
         all_image_embeddings = []
         image_filenames = []
         pixel_bert_transformed_images = []
-        with Bar(f'Computing the embedding of all the images',
+        with Bar(f'Computing the embedding of all the images', check_tty=False,
                  max=len(image_data_loader)) as image_embedding_bar:
             for batch_id, (filenames, images) in enumerate(image_data_loader):
                 image_tensors = []
@@ -154,7 +155,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
         dot_products = []
         groundtruth_expected_image_filenames = []
         queries = []
-        with Bar(f'Computing dot products for every query',
+        with Bar(f'Computing dot products for every query', check_tty=False,
                  max=len(text_data_loader)) as dot_prod_bar:
             for batch_id, (filenames, captions) in enumerate(text_data_loader):
                 texts_embeddings = text_encoder(captions).to(device)
@@ -164,13 +165,14 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
                 queries.extend(captions)
                 dot_prod_bar.next()
         dot_products = torch.cat(dot_products)
-        assert dot_products.shape[0] == len(groundtruth_expected_image_filenames)  # 1 matching filename for caption query
+        assert dot_products.shape[0] == len(groundtruth_expected_image_filenames)  # 1 matching filename for caption
+        # query
         assert dot_products.shape[1] == len(image_filenames)
         assert len(groundtruth_expected_image_filenames) == len(queries)
 
         for first_phase_top_k in top_k_first_phase:
             retrieved_image_filenames = []
-            with Bar(f'Second phase query for first_phase {first_phase_top_k}',
+            with Bar(f'Second phase query for first_phase {first_phase_top_k}', check_tty=False,
                      max=len(queries)) as query_bar:
                 for i, (query, dot_prod) in enumerate(zip(queries, dot_products)):
                     now = time.time()
@@ -217,9 +219,9 @@ def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negativ
     :return: The validation loss
     """
     if torch.cuda.is_available():
-        dev = "cuda:0"
+        dev = 'cuda:0'
     else:
-        dev = "cpu"
+        dev = 'cpu'
 
     device = torch.device(dev)
     image_encoder.train(False)
@@ -277,9 +279,9 @@ def collate_images(batch, *args, **kwargs):
 def compute_loss(images, captions, original_images, vilt_model, images_embeddings, texts_embeddings,
                  negative_batch_size, temperature, alpha):
     if torch.cuda.is_available():
-        dev = "cuda:0"
+        dev = 'cuda:0'
     else:
-        dev = "cpu"
+        dev = 'cpu'
     device = torch.device(dev)
     sample_set = list(range(len(images)))
     cross_entropies = []
@@ -293,10 +295,31 @@ def compute_loss(images, captions, original_images, vilt_model, images_embedding
         all_texts_embeddings = texts_embeddings[[i] + negative_captions_indices]
 
         # first dot product correspond to the positive one, the rest are negatives
+        if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
+            t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
+            r = torch.cuda.memory_reserved(0)/1024/1024/1024
+            a = torch.cuda.memory_allocated(0)/1024/1024/1024
+            print(f'Before computing dot_products total_memory {t} GB, reserved {r} GB, allocated {a} GB')
         dot_products = image_embedding.matmul(all_texts_embeddings.T)
+        if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
+            t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
+            r = torch.cuda.memory_reserved(0)/1024/1024/1024
+            a = torch.cuda.memory_allocated(0)/1024/1024/1024
+            print(f'After computing dot_products total_memory {t} GB, reserved {r} GB, allocated {a} GB')
+
         transformed_image = vilt_transform(original_images[i]).to(device)
+        if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
+            t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
+            r = torch.cuda.memory_reserved(0)/1024/1024/1024
+            a = torch.cuda.memory_allocated(0)/1024/1024/1024
+            print(f'Before computing teacher scores from ViltModel on 1 image and {len(negative_captions) + 1} captions total_memory {t} GB, reserved {r} GB, allocated {a} GB')
         teacher_scores = vilt_model.score_image_vs_texts(transformed_image,
                                                          [caption] + negative_captions)
+        if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
+            t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
+            r = torch.cuda.memory_reserved(0)/1024/1024/1024
+            a = torch.cuda.memory_allocated(0)/1024/1024/1024
+            print(f'After computing ranking for image {i} and {len(negative_captions) + 1} captions: total_memory {t} GB, reserved {r} GB, allocated {a} GB')
         student_scores = dot_products
         teacher_distrib_p_bi = softmax(
             teacher_scores / temperature)
@@ -305,6 +328,41 @@ def compute_loss(images, captions, original_images, vilt_model, images_embedding
         log_nce.append(-torch.log(softmax(dot_products)))
         cxe = CXE(student_distrib_q_bi, teacher_distrib_p_bi)
         cross_entropies.append(cxe)
+        if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
+            t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
+            r = torch.cuda.memory_reserved(0)/1024/1024/1024
+            a = torch.cuda.memory_allocated(0)/1024/1024/1024
+            print(f'Before deleting transformed image: total_memory {t} GB, reserved {r} GB, allocated {a} GB')
+        del transformed_image
+        if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
+            t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
+            r = torch.cuda.memory_reserved(0)/1024/1024/1024
+            a = torch.cuda.memory_allocated(0)/1024/1024/1024
+            print(f'Before deleting teacher_scores: total_memory {t} GB, reserved {r} GB, allocated {a} GB')
+        del teacher_scores
+        if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
+            t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
+            r = torch.cuda.memory_reserved(0)/1024/1024/1024
+            a = torch.cuda.memory_allocated(0)/1024/1024/1024
+            print(f'Before deleting student_scores: total_memory {t} GB, reserved {r} GB, allocated {a} GB')
+        del student_scores
+        if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
+            t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
+            r = torch.cuda.memory_reserved(0)/1024/1024/1024
+            a = torch.cuda.memory_allocated(0)/1024/1024/1024
+            print(f'Before deleting dot_products: total_memory {t} GB, reserved {r} GB, allocated {a} GB')
+        del dot_products
+        if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
+            t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
+            r = torch.cuda.memory_reserved(0)/1024/1024/1024
+            a = torch.cuda.memory_allocated(0)/1024/1024/1024
+            print(f'After deleting ALL: total_memory {t} GB, reserved {r} GB, allocated {a} GB')
+        torch.cuda.empty_cache()
+        if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
+            t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
+            r = torch.cuda.memory_reserved(0)/1024/1024/1024
+            a = torch.cuda.memory_allocated(0)/1024/1024/1024
+            print(f'After torch.cuda.empty_cache(): total_memory {t} GB, reserved {r} GB, allocated {a} GB')
     distillation_loss = torch.sum(torch.stack(cross_entropies))
     dual_encoder_loss = torch.sum(torch.stack(log_nce))
     loss = distillation_loss + alpha * dual_encoder_loss
@@ -337,18 +395,40 @@ def train(output_model_path: str,
     :return: Nothing, the outputs are models stored and prints of validation and training loss
     """
     if torch.cuda.is_available():
-        dev = "cuda:0"
+        dev = 'cuda:0'
     else:
-        dev = "cpu"
+        dev = 'cpu'
     device = torch.device(dev)
 
     os.makedirs(output_model_path, exist_ok=True)
     image_encoder = ImageEncoder(backbone_model=image_encoder_backbone_model)
     text_encoder = TextEncoder(model_path=word2vec_model_path)
     vilt_model = get_vilt_model(load_path=vilt_model_path)
+
+    if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
+        t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
+        r = torch.cuda.memory_reserved(0)/1024/1024/1024
+        a = torch.cuda.memory_allocated(0)/1024/1024/1024
+        print(f'Before moving models to GPU total_memory {t} GB, reserved {r} GB, allocated {a} GB')
+
     image_encoder.to(device)
+    if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
+        t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
+        r = torch.cuda.memory_reserved(0)/1024/1024/1024
+        a = torch.cuda.memory_allocated(0)/1024/1024/1024
+        print(f'After moving image encoder model to GPU total_memory {t} GB, reserved {r} GB, allocated {a} GB')
     text_encoder.to(device)
+    if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
+        t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
+        r = torch.cuda.memory_reserved(0)/1024/1024/1024
+        a = torch.cuda.memory_allocated(0)/1024/1024/1024
+        print(f'After moving text encoder model to GPU total_memory {t} GB, reserved {r} GB, allocated {a} GB')
     vilt_model.to(device)
+    if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
+        t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
+        r = torch.cuda.memory_reserved(0)/1024/1024/1024
+        a = torch.cuda.memory_allocated(0)/1024/1024/1024
+        print(f'After moving models to GPU total_memory {t} GB, reserved {r} GB, allocated {a} GB')
     optimizer = torch.optim.SGD(image_encoder.parameters(), lr=learning_rate)
     optimizer.zero_grad()
 
@@ -364,7 +444,12 @@ def train(output_model_path: str,
                     split_root=DATASET_SPLIT_ROOT_PATH,
                     split='test')
 
-    with Bar('Epochs', max=num_epochs) as epoch_bar:
+    if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
+        t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
+        r = torch.cuda.memory_reserved(0)/1024/1024/1024
+        a = torch.cuda.memory_allocated(0)/1024/1024/1024
+        print(f'After run evaluations total_memory {t} GB, reserved {r} GB, allocated {a} GB')
+    with Bar('Epochs', max=num_epochs, check_tty=False) as epoch_bar:
 
         for epoch in range(num_epochs):
             train_data_loader = get_captions_image_data_loader(root=DATASET_ROOT_PATH,
@@ -387,7 +472,7 @@ def train(output_model_path: str,
             epoch_start = time.time()
             time_start = time.time()
 
-            with Bar(f'Batch in epoch {epoch}', max=len(train_data_loader.dataset) / batch_size) as training_bar:
+            with Bar(f'Batch in epoch {epoch}', max=len(train_data_loader.dataset) / batch_size, check_tty=False) as training_bar:
 
                 for batch_id, (matching_filenames, images, captions) in enumerate(train_data_loader):
 
@@ -404,8 +489,29 @@ def train(output_model_path: str,
                     text_encoder.fc2.train()
                     optimizer.zero_grad()
                     original_images = images
-                    images_embeddings = image_encoder(torch.stack(image_tensors).to(device)).to(device)
+                    if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
+                        t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
+                        r = torch.cuda.memory_reserved(0)/1024/1024/1024
+                        a = torch.cuda.memory_allocated(0)/1024/1024/1024
+                        print(f'Before stacking {len(image_tensors)} image tensors to GPU total_memory {t} GB, reserved {r} GB, allocated {a} GB')
+                    image_tensors = torch.stack(image_tensors).to(device)
+                    if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
+                        t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
+                        r = torch.cuda.memory_reserved(0)/1024/1024/1024
+                        a = torch.cuda.memory_allocated(0)/1024/1024/1024
+                        print(f'Before encoding {len(image_tensors)} images to GPU total_memory {t} GB, reserved {r} GB, allocated {a} GB')
+                    images_embeddings = image_encoder(image_tensors).to(device)
+                    if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
+                        t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
+                        r = torch.cuda.memory_reserved(0)/1024/1024/1024
+                        a = torch.cuda.memory_allocated(0)/1024/1024/1024
+                        print(f'Before encoding {len(captions)} texts to GPU total_memory {t} GB, reserved {r} GB, allocated {a} GB')
                     texts_embeddings = text_encoder(captions).to(device)
+                    if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
+                        t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
+                        r = torch.cuda.memory_reserved(0)/1024/1024/1024
+                        a = torch.cuda.memory_allocated(0)/1024/1024/1024
+                        print(f'After computing images and texts embeddings for all batch total_memory {t} GB, reserved {r} GB, allocated {a} GB')
                     loss = compute_loss(images, captions, original_images, vilt_model, images_embeddings,
                                         texts_embeddings,
                                         negative_batch_size, temperature, alpha)

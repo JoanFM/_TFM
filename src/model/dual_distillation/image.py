@@ -13,23 +13,15 @@ class DenseVisualFeatureExtractor(nn.Module):
                  ):
         super().__init__()
         import torchvision.models as models
-        if torch.cuda.is_available():
-            dev = "cuda:0"
-        else:
-            dev = "cpu"
-        self.device = torch.device(dev)
-
         self.pool_fn = None
         self.model = getattr(models, backbone_model)(pretrained=True)
         self.model = self.model.eval()
         self.layer = self.model._modules.get('avgpool')
-        self.model.to(self.device)
 
     @property
     def output_dim(self):
         random_image_array = np.random.random((8, 3, 224, 224))
         content = torch.Tensor(random_image_array)
-        content = content.to(self.device)
         return self(content).shape[1]
 
     def _get_features(self, content):
@@ -56,15 +48,9 @@ class ImageEncoder(nn.Module):
 
     def __init__(self, common_layer_size=512, **kwargs):
         super().__init__()
-        if torch.cuda.is_available():
-            dev = "cuda:0"
-        else:
-            dev = "cpu"
-        self.device = torch.device(dev)
         self.feature_extractor = DenseVisualFeatureExtractor(**kwargs)
         previous_layer = self.feature_extractor.output_dim
         self.common_space_embedding = nn.Linear(in_features=previous_layer, out_features=common_layer_size)
-        self.common_space_embedding.to(self.device)
 
     def forward(self, x):
         x = self.feature_extractor(x)
