@@ -365,6 +365,7 @@ def compute_loss(images, captions, original_images, vilt_model, images_embedding
             print(f'After torch.cuda.empty_cache(): total_memory {t} GB, reserved {r} GB, allocated {a} GB')
     distillation_loss = torch.sum(torch.stack(cross_entropies))
     dual_encoder_loss = torch.sum(torch.stack(log_nce))
+    print(f' distillation_loss {distillation_loss} and dual_encoder_loss {dual_encoder_loss}')
     loss = distillation_loss + alpha * dual_encoder_loss
     return loss
 
@@ -441,10 +442,10 @@ def train(output_model_path: str,
     train_evals_epochs = []
     alpha = temperature * temperature * 0.001
 
-    run_evaluations(image_encoder, text_encoder, vilt_model,
-                    batch_size, root=DATASET_ROOT_PATH,
-                    split_root=DATASET_SPLIT_ROOT_PATH,
-                    split='test')
+    # run_evaluations(image_encoder, text_encoder, vilt_model,
+    #                 batch_size, root=DATASET_ROOT_PATH,
+    #                 split_root=DATASET_SPLIT_ROOT_PATH,
+    #                 split='test')
 
     if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
         t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
