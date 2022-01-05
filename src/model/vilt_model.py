@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 
 import torch
 from transformers import BertTokenizer
@@ -87,6 +87,25 @@ class ViltModel(ViLTransformerSS):
         )[:, 0]
 
         return scores
+
+    def score_query_vs_images(self, query: str, images: List):
+        rank_scores = []
+        encoded_input = self.tokenizer(query, return_tensors='pt')
+        input_ids = encoded_input['input_ids'][:, :self._config['max_text_len']]
+        mask = encoded_input['attention_mask'][:, :self._config['max_text_len']]
+        in_cuda = self.in_cuda
+        if in_cuda:
+            input_ids = input_ids.to(self._device)
+            mask = mask.to(self._device)
+        batch = {'text_ids': input_ids, 'text_masks': mask, 'text_labels': None}
+        # no masking
+        for image in images:
+            if in_cuda:
+                image = image.to(self._device)
+            batch['image'] = [image.unsqueeze(0)]
+            score = self.rank_output(self.infer(batch)['cls_feats'])
+            rank_scores.append(score[:, 0])
+        return torch.stack(rank_scores, dim=1)[0]
 
 
 def get_vilt_model(load_path=None):
