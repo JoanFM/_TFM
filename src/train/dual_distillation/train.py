@@ -286,13 +286,12 @@ def compute_loss(images, captions, original_images, vilt_model, images_embedding
     sample_set = list(range(len(images)))
     cross_entropies = []
     log_nce = []
+    all_dot_products = images_embeddings.matmul(texts_embeddings.T)
     for i, (image, caption) in enumerate(zip(images, captions)):
         csample_set = copy.copy(sample_set)
         csample_set.remove(i)
-        image_embedding = images_embeddings[i]
         negative_captions_indices = random.sample(csample_set, negative_batch_size - 1)
         negative_captions = [captions[j] for j in negative_captions_indices]
-        all_texts_embeddings = texts_embeddings[[i] + negative_captions_indices]
 
         # first dot product correspond to the positive one, the rest are negatives
         if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
@@ -300,7 +299,7 @@ def compute_loss(images, captions, original_images, vilt_model, images_embedding
             r = torch.cuda.memory_reserved(0)/1024/1024/1024
             a = torch.cuda.memory_allocated(0)/1024/1024/1024
             print(f'Before computing dot_products total_memory {t} GB, reserved {r} GB, allocated {a} GB')
-        dot_products = image_embedding.matmul(all_texts_embeddings.T)
+        dot_products = all_dot_products[i][[i] + negative_captions_indices]
         if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
             t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
             r = torch.cuda.memory_reserved(0)/1024/1024/1024
