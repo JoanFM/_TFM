@@ -286,7 +286,12 @@ def compute_loss(images, captions, original_images, vilt_model, images_embedding
     sample_set = list(range(len(images)))
     cross_entropies = []
     log_nce = []
+    # one_dot_product = torch.dot(texts_embeddings[1], images_embeddings[3])
+    # print(f' one_dot_product {one_dot_product}')
+    # print(f' norm {torch.linalg.vector_norm(texts_embeddings[1])} vs {torch.linalg.vector_norm(images_embeddings[3])}')
     all_dot_products = texts_embeddings.matmul(images_embeddings.T)
+    # print(f' all_dot_products {all_dot_products}')
+    # print(f' all_dot_products {all_dot_products[1][3]} vs {all_dot_products[3][1]}')
     transformed_images = [vilt_transform(original_image).to(device) for original_image in original_images]
     for i, (image, caption) in enumerate(zip(images, captions)):
         csample_set = copy.copy(sample_set)
@@ -301,7 +306,8 @@ def compute_loss(images, captions, original_images, vilt_model, images_embedding
             r = torch.cuda.memory_reserved(0)/1024/1024/1024
             a = torch.cuda.memory_allocated(0)/1024/1024/1024
             print(f'Before computing dot_products negative_images_indices {t} GB, reserved {r} GB, allocated {a} GB')
-        dot_products = all_dot_products[i][[i] + negative_images_indices]
+
+        dot_products = all_dot_products[i, [i] + negative_images_indices]
         if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
             t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
             r = torch.cuda.memory_reserved(0)/1024/1024/1024
@@ -313,25 +319,28 @@ def compute_loss(images, captions, original_images, vilt_model, images_embedding
             r = torch.cuda.memory_reserved(0)/1024/1024/1024
             a = torch.cuda.memory_allocated(0)/1024/1024/1024
             print(f'Before computing teacher scores from ViltModel on 1 image and {len(transformed_negative_images) + 1} captions total_memory {t} GB, reserved {r} GB, allocated {a} GB')
-        teacher_scores = vilt_model.score_query_vs_images(caption,
-                                                         [transformed_positive_image] + transformed_negative_images)
+
+        student_scores = dot_products
+        student_distrib_q_bi = softmax(
+            student_scores / temperature)
+
+        with torch.no_grad():
+            teacher_scores = vilt_model.score_query_vs_images(caption,
+                                                             [transformed_positive_image] + transformed_negative_images)
+            teacher_distrib_p_bi = softmax(
+                teacher_scores / temperature)
         if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
             t = torch.cuda.get_device_properties(0).total_memory/1024/1024/1024
             r = torch.cuda.memory_reserved(0)/1024/1024/1024
             a = torch.cuda.memory_allocated(0)/1024/1024/1024
             print(f'After computing ranking for image {i} and {len(transformed_negative_images) + 1} captions: total_memory {t} GB, reserved {r} GB, allocated {a} GB')
-        student_scores = dot_products
+        print(f' student_scores {student_scores}')
         print(f' teacher_scores {teacher_scores.shape} vs student_scores {student_scores.shape}')
         print(f' teacher_scores {teacher_scores} vs student_scores {student_scores}')
-        teacher_scores.grad = None
 
-        teacher_distrib_p_bi = softmax(
-            teacher_scores / temperature)
-        student_distrib_q_bi = softmax(
-            student_scores / temperature)
         print(f' teacher_distrib_p_bi {teacher_distrib_p_bi} ')
         print(f' student_distrib_q_bi {student_distrib_q_bi} ')
-        log_nce.append(-torch.log(softmax(dot_products)))
+        log_nce.append(-torch.log(softmax(student_scores)))
         cxe = CXE(student_distrib_q_bi, teacher_distrib_p_bi)
         cross_entropies.append(cxe)
         if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
