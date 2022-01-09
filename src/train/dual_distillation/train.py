@@ -27,7 +27,7 @@ softmax_dim_0 = torch.nn.Softmax(dim=0)
 softmax_dim_1 = torch.nn.Softmax(dim=1)
 log_softmax_dim_0 = torch.nn.LogSoftmax(dim=0)
 log_softmax_dim_1 = torch.nn.LogSoftmax(dim=1)
-cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='sum')
+cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='mean')
 
 # The base directory where models are stored after every epoch
 IMAGE_EMBEDDING_BASE_PATH = os.getenv('IMAGE_EMBEDDING_BASE_PATH', '/hdd/master/tfm/output-image-encoders')
@@ -288,7 +288,7 @@ def compute_loss(images, captions, original_images, vilt_model, images_embedding
     device = torch.device(dev)
     sample_set = list(range(len(images)))
     all_dot_products = texts_embeddings.matmul(images_embeddings.T)
-    dual_encoder_loss = torch.sum(torch.diagonal(-log_softmax_dim_1(all_dot_products), 0))
+    dual_encoder_loss = torch.mean(torch.diagonal(-log_softmax_dim_1(all_dot_products), 0))
     transformed_images = [vilt_transform(original_image).to(device) for original_image in original_images]
     list_of_student_scores_with_temperature = []
     list_of_teacher_distributions = []
