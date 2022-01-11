@@ -524,19 +524,19 @@ def train(output_model_path: str,
                 pickle.dump(train_loss, f)
 
             if epoch % 1 == 0:
-                test_evaluations = run_evaluations(image_encoder, text_encoder,
+                test_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
                                                    batch_size, root=DATASET_ROOT_PATH,
                                                    split_root=DATASET_SPLIT_ROOT_PATH,
                                                    split='test')
                 test_evals_epochs.append(test_evaluations)
 
-                val_evaluations = run_evaluations(image_encoder, text_encoder,
+                val_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
                                                   batch_size, root=DATASET_ROOT_PATH,
                                                   split_root=DATASET_SPLIT_ROOT_PATH,
                                                   split='val')
                 val_evals_epochs.append(val_evaluations)
 
-                # train_evaluations = run_evaluations(image_encoder, text_encoder,
+                # train_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
                 #                                     batch_size, root=DATASET_ROOT_PATH,
                 #                                     split_root=DATASET_SPLIT_ROOT_PATH,
                 #                                     split='train',
