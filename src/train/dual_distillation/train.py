@@ -325,11 +325,13 @@ def train(output_model_path: str,
           batch_size: int = 8,
           negative_batch_size: int = 4,
           learning_rate: float = 0.001,
-          temperature=10
+          temperature=10,
+          dataloader_num_worker=1
           ):
     """
     Train the model to have an image encoder that encodes into sparse embeddings matching the text encoder's outputs
 
+    :param dataloader_num_worker: num worker to use in dataloader
     :param temperature:
     :param negative_batch_size:
     :param image_encoder_backbone_model: The dense backbone model on which the image embedding is based
@@ -378,8 +380,8 @@ def train(output_model_path: str,
         a = torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024
         print(f'After moving models to GPU total_memory {t} GB, reserved {r} GB, allocated {a} GB')
 
-    params = list(image_encoder.parameters()) + list(text_encoder.parameters())
-    optimizer = torch.optim.Adam(params, lr=learning_rate)
+    optimizer = torch.optim.Adam([{'params': image_encoder.parameters()}, {'params': text_encoder.parameters()}],
+                                lr=learning_rate)
     optimizer.zero_grad()
 
     train_losses_epochs = []
@@ -406,7 +408,7 @@ def train(output_model_path: str,
                                                                split_root=DATASET_SPLIT_ROOT_PATH,
                                                                split='train',
                                                                shuffle=True,
-                                                               num_workers=1,
+                                                               num_workers=dataloader_num_worker,
                                                                batch_size=batch_size,
                                                                collate_fn=collate)
 
@@ -414,7 +416,7 @@ def train(output_model_path: str,
                                                              split_root=DATASET_SPLIT_ROOT_PATH,
                                                              split='val',
                                                              shuffle=True,
-                                                             num_workers=1,
+                                                             num_workers=dataloader_num_worker,
                                                              batch_size=batch_size,
                                                              collate_fn=collate)
 
@@ -470,8 +472,8 @@ def train(output_model_path: str,
                     loss = compute_loss(images, captions, original_images, vilt_model, images_embeddings,
                                         texts_embeddings,
                                         negative_batch_size, temperature, alpha)
-                    train_loss.append(loss.item())
                     loss.backward()
+                    train_loss.append(loss.item())
                     optimizer.step()
                     if batch_id % 200 == 0:
                         print(colored(
@@ -570,7 +572,8 @@ def main(*args, **kwargs):
         image_encoder_backbone_model='resnet50',
         vilt_model_path=VILT_BASE_MODEL_LOAD_PATH,
         batch_size=8,
-        negative_batch_size=4)
+        negative_batch_size=4,
+        dataloader_num_worker=1)
 
 
 if __name__ == '__main__':

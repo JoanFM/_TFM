@@ -15,7 +15,6 @@ class DenseVisualFeatureExtractor(nn.Module):
         import torchvision.models as models
         self.pool_fn = None
         self.model = getattr(models, backbone_model)(pretrained=True)
-        self.model = self.model.eval()
         self.layer = self.model._modules.get('avgpool')
 
     @property
@@ -29,7 +28,7 @@ class DenseVisualFeatureExtractor(nn.Module):
 
         def get_activation(model, model_input, output):
             nonlocal feature_map
-            feature_map = output.detach()
+            feature_map = output
 
         handle = self.layer.register_forward_hook(get_activation)
         self.model(content)

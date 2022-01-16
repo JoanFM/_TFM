@@ -70,7 +70,10 @@ class TextEncoder(nn.Module):
             x = x.to(self._device)
         x = self.word_embd(x)
         x = self.relu(self.fc1(x))
-        x = torch.max(x, dim=1)[0]
+        # x is of shape (batch_size, tokens, output_dim)
+        x = torch.max(x, dim=1).values
+        # it is reduced in the number of tokens. For each dim in output_dim it takes the maximum value for each of the words,
+        # so x is of the shape (batch_dim, output_dim)
         x = self.fc2(x)
         return x
 
