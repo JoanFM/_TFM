@@ -116,7 +116,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
     :return:
     """
     if top_ks is None:
-        top_ks = [5, 10]
+        top_ks = [5, 10, 100, 500]
     if top_k_first_phase is None:
         top_k_first_phase = [10]
     if torch.cuda.is_available():
@@ -190,18 +190,18 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
                     candidate_images = [pixel_bert_transformed_images[i] for i in candidate_images_indices]
                     pre_score = time.time()
                     scores = vilt_model.rank_query_vs_images(query, candidate_images)
-                    if i % 50 == 0:
-                        print(f' Computing the score for {len(candidate_images)} took {time.time() - pre_score}s')
+                    # if i % 50 == 0:
+                    #     print(f' Computing the score for {len(candidate_images)} took {time.time() - pre_score}s')
                     best_indices = [i for _, i in sorted(zip(scores, range(len(scores))), reverse=True)]
                     resulting_filenames = [image_filenames[candidate_images_indices[i]] for i in best_indices]
-                    if i % 50 == 0:
-                        print(
-                            f' groundtruth {groundtruth_expected_image_filenames[i]} in resulting {resulting_filenames}')
+                    # if i % 50 == 0:
+                    #     print(
+                    #         f' groundtruth {groundtruth_expected_image_filenames[i]} in resulting {resulting_filenames}')
                     resulting_filenames.extend([image_filenames[i] for i in non_candidate_images_indices])
                     retrieved_image_filenames.append(resulting_filenames)
                     query_bar.next()
-                    if i % 50 == 0:
-                        print(f' Computing the re-ranking for a single query took {time.time() - now}s')
+                    # if i % 50 == 0:
+                    #     print(f' Computing the re-ranking for a single query took {time.time() - now}s')
 
             t2i_evaluations = evaluate(['recall', 'reciprocal_rank'], retrieved_image_filenames,
                                        groundtruth_expected_image_filenames,
@@ -472,9 +472,36 @@ def train(output_model_path: str,
                     loss = compute_loss(images, captions, original_images, vilt_model, images_embeddings,
                                         texts_embeddings,
                                         negative_batch_size, temperature, alpha)
+
+                    before_update_image = {}
+                    for param_name, param in image_encoder.named_parameters():
+                        before_update_image[param_name] = 100*param
+                    before_update_text = {}
+                    for param_name, param in text_encoder.named_parameters():
+                        before_update_text[param_name] = 100*param
                     loss.backward()
                     train_loss.append(loss.item())
                     optimizer.step()
+                    after_update_image = {}
+                    for param_name, param in image_encoder.named_parameters():
+                        after_update_image[param_name] = 100*param
+                    after_update_text = {}
+                    for param_name, param in text_encoder.named_parameters():
+                        after_update_text[param_name] = 100*param
+
+                    for param_after_name, param_after in after_update_image.items():
+                        param_before = before_update_image[param_after_name]
+                        diff = param_after - param_before
+                        no_zeros = torch.count_nonzero(diff)
+                        if no_zeros == 0:
+                            print(f'\nParam image_encoder.{param_after_name} is not updated')
+                    for param_after_name, param_after in after_update_text.items():
+                        param_before = before_update_text[param_after_name]
+                        diff = param_after - param_before
+                        no_zeros = torch.count_nonzero(diff)
+                        if no_zeros == 0:
+                            print(f'\nParam text_encoder.{param_after_name} is not updated')
+
                     if batch_id % 200 == 0:
                         print(colored(
                             f'\n[{batch_id}] \t training loss:\t {np.mean(np.array(train_loss))} \t time elapsed:\t {time.time() - time_start} s',
