@@ -29,7 +29,7 @@ class TextEncoder(nn.Module):
         self._device = torch.device(dev)
         self.gensim_model = KeyedVectors.load(model_path)
         weights = torch.FloatTensor(self.gensim_model.vectors)
-        self.word_embd = nn.Embedding.from_pretrained(weights)
+        self.word_embd = nn.Embedding.from_pretrained(weights, freeze=False)
         self.fc1 = nn.Linear(self.word_embd.embedding_dim, output_dim)
         self.relu = nn.ReLU(inplace=True)
         self.fc2 = nn.Linear(output_dim, embd_dim)

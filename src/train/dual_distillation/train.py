@@ -473,34 +473,34 @@ def train(output_model_path: str,
                                         texts_embeddings,
                                         negative_batch_size, temperature, alpha)
 
-                    before_update_image = {}
-                    for param_name, param in image_encoder.named_parameters():
-                        before_update_image[param_name] = 100*param
-                    before_update_text = {}
-                    for param_name, param in text_encoder.named_parameters():
-                        before_update_text[param_name] = 100*param
+                    # before_update_image = {}
+                    # for param_name, param in image_encoder.named_parameters():
+                    #     before_update_image[param_name] = 100*param
+                    # before_update_text = {}
+                    # for param_name, param in text_encoder.named_parameters():
+                    #     before_update_text[param_name] = 100*param
                     loss.backward()
                     train_loss.append(loss.item())
                     optimizer.step()
-                    after_update_image = {}
-                    for param_name, param in image_encoder.named_parameters():
-                        after_update_image[param_name] = 100*param
-                    after_update_text = {}
-                    for param_name, param in text_encoder.named_parameters():
-                        after_update_text[param_name] = 100*param
-
-                    for param_after_name, param_after in after_update_image.items():
-                        param_before = before_update_image[param_after_name]
-                        diff = param_after - param_before
-                        no_zeros = torch.count_nonzero(diff)
-                        if no_zeros == 0:
-                            print(f'\nParam image_encoder.{param_after_name} is not updated')
-                    for param_after_name, param_after in after_update_text.items():
-                        param_before = before_update_text[param_after_name]
-                        diff = param_after - param_before
-                        no_zeros = torch.count_nonzero(diff)
-                        if no_zeros == 0:
-                            print(f'\nParam text_encoder.{param_after_name} is not updated')
+                    # after_update_image = {}
+                    # for param_name, param in image_encoder.named_parameters():
+                    #     after_update_image[param_name] = 100*param
+                    # after_update_text = {}
+                    # for param_name, param in text_encoder.named_parameters():
+                    #     after_update_text[param_name] = 100*param
+                    #
+                    # for param_after_name, param_after in after_update_image.items():
+                    #     param_before = before_update_image[param_after_name]
+                    #     diff = param_after - param_before
+                    #     no_zeros = torch.count_nonzero(diff)
+                    #     if no_zeros == 0:
+                    #         print(f'\nParam image_encoder.{param_after_name} is not updated')
+                    # for param_after_name, param_after in after_update_text.items():
+                    #     param_before = before_update_text[param_after_name]
+                    #     diff = param_after - param_before
+                    #     no_zeros = torch.count_nonzero(diff)
+                    #     if no_zeros == 0:
+                    #         print(f'\nParam text_encoder.{param_after_name} is not updated')
 
                     if batch_id % 200 == 0:
                         print(colored(
