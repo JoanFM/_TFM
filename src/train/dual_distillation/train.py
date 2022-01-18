@@ -116,7 +116,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
     :return:
     """
     if top_ks is None:
-        top_ks = [5, 10, 100, 500]
+        top_ks = [5, 10, 50, 100, 500]
     if top_k_first_phase is None:
         top_k_first_phase = [10]
     if torch.cuda.is_available():
@@ -165,7 +165,8 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
                 texts_embeddings = text_encoder(captions).to(device)
                 d_product = texts_embeddings.matmul(all_image_embeddings.T)
                 dot_products.append(d_product)
-                groundtruth_expected_image_filenames.extend(filenames)
+                for filename in filenames:
+                    groundtruth_expected_image_filenames.append([filename])
                 queries.extend(captions)
                 dot_prod_bar.next()
         dot_products = torch.cat(dot_products)
