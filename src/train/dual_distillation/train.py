@@ -27,7 +27,6 @@ softmax_dim_0 = torch.nn.Softmax(dim=0)
 softmax_dim_1 = torch.nn.Softmax(dim=1)
 log_softmax_dim_0 = torch.nn.LogSoftmax(dim=0)
 log_softmax_dim_1 = torch.nn.LogSoftmax(dim=1)
-cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='mean')
 
 # The base directory where models are stored after every epoch
 IMAGE_EMBEDDING_BASE_PATH = os.getenv('IMAGE_EMBEDDING_BASE_PATH', '/hdd/master/tfm/output-image-encoders')
@@ -212,7 +211,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
         return t2i_evaluations
 
 
-def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negative_batch_size, temperature, alpha):
+def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negative_batch_size, temperature, alpha, reduction_in_loss):
     """
     Runs a loop to compute the validation loss
 
@@ -254,7 +253,7 @@ def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negativ
             texts_embeddings = text_encoder(captions).to(device)
             loss = compute_loss(images, captions, original_images, vilt_model, images_embeddings,
                                 texts_embeddings,
-                                negative_batch_size, temperature, alpha)
+                                negative_batch_size, temperature, alpha, reduction_in_loss)
             val_loss.append(loss.item())
 
     return val_loss
@@ -281,7 +280,8 @@ def collate_images(batch, *args, **kwargs):
 
 
 def compute_loss(images, captions, original_images, vilt_model, images_embeddings, texts_embeddings,
-                 negative_batch_size, temperature, alpha):
+                 negative_batch_size, temperature, alpha, reduction_in_loss):
+    cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction=reduction_in_loss)
     if torch.cuda.is_available():
         dev = 'cuda:0'
     else:
@@ -289,7 +289,7 @@ def compute_loss(images, captions, original_images, vilt_model, images_embedding
     device = torch.device(dev)
     sample_set = list(range(len(images)))
     all_dot_products = texts_embeddings.matmul(images_embeddings.T)
-    dual_encoder_loss = torch.mean(torch.diagonal(-log_softmax_dim_1(all_dot_products), 0))
+    dual_encoder_loss = getattr(torch, reduction_in_loss)(torch.diagonal(-log_softmax_dim_1(all_dot_products), 0))
     transformed_images = [vilt_transform(original_image).to(device) for original_image in original_images]
     list_of_student_scores_with_temperature = []
     list_of_teacher_distributions = []
@@ -314,6 +314,7 @@ def compute_loss(images, captions, original_images, vilt_model, images_embedding
     teacher_distributions_from_temperature = torch.stack(list_of_teacher_distributions)
 
     distillation_loss = cross_entropy_loss(student_scores_with_temperature, teacher_distributions_from_temperature)
+    print(f' distillation_loss {distillation_loss}, dual_encoder_loss {dual_encoder_loss}')
     loss = distillation_loss + alpha * dual_encoder_loss
     return loss
 
@@ -327,7 +328,8 @@ def train(output_model_path: str,
           negative_batch_size: int = 4,
           learning_rate: float = 0.001,
           temperature=10,
-          dataloader_num_worker=1
+          dataloader_num_worker=1,
+          reduction_in_loss='sum'
           ):
     """
     Train the model to have an image encoder that encodes into sparse embeddings matching the text encoder's outputs
@@ -472,7 +474,7 @@ def train(output_model_path: str,
                             f'After computing images and texts embeddings for all batch total_memory {t} GB, reserved {r} GB, allocated {a} GB')
                     loss = compute_loss(images, captions, original_images, vilt_model, images_embeddings,
                                         texts_embeddings,
-                                        negative_batch_size, temperature, alpha)
+                                        negative_batch_size, temperature, alpha, reduction_in_loss)
 
                     # before_update_image = {}
                     # for param_name, param in image_encoder.named_parameters():
@@ -503,7 +505,7 @@ def train(output_model_path: str,
                     #     if no_zeros == 0:
                     #         print(f'\nParam text_encoder.{param_after_name} is not updated')
 
-                    if batch_id % 200 == 0:
+                    if batch_id % 1 == 0:
                         print(colored(
                             f'\n[{batch_id}] \t training loss:\t {np.mean(np.array(train_loss))} \t time elapsed:\t {time.time() - time_start} s',
                             'green'))
@@ -518,7 +520,7 @@ def train(output_model_path: str,
                                        batch_id) + '-text.pt')
                     if batch_id % 200 == 0 and batch_id != 0:
                         val_loss = validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
-                                                   negative_batch_size, temperature, alpha)
+                                                   negative_batch_size, temperature, alpha, reduction_in_loss)
                         print(colored(
                             f'\n[{batch_id}]\tvalidation loss:\t{np.mean(np.array(val_loss))}\ttime elapsed:\t{time.time() - time_start} s',
                             'yellow'))
@@ -599,8 +601,8 @@ def main(*args, **kwargs):
         word2vec_model_path=TEXT_WORD2_VEC_MODEL_PATH,
         image_encoder_backbone_model='resnet50',
         vilt_model_path=VILT_BASE_MODEL_LOAD_PATH,
-        batch_size=128,
-        negative_batch_size=8,
+        batch_size=8,
+        negative_batch_size=4,
         dataloader_num_worker=1,
         learning_rate=0.001)
 
