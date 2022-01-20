@@ -75,7 +75,8 @@ class TextEncoder(nn.Module):
         # it is reduced in the number of tokens. For each dim in output_dim it takes the maximum value for each of the words,
         # so x is of the shape (batch_dim, output_dim)
         x = self.fc2(x)
-        return x
+        result = torch.nn.functional.normalize(x, p=2, dim=1)
+        return result
 
 
 def get_word2vec_for_vocabulary(countvectorizer_path: str = 'count_vectorizer.pkl',

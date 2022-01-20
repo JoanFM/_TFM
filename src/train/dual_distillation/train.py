@@ -211,7 +211,8 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
         return t2i_evaluations
 
 
-def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negative_batch_size, temperature, alpha, reduction_in_loss):
+def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negative_batch_size, temperature, alpha,
+                    reduction_in_loss):
     """
     Runs a loop to compute the validation loss
 
@@ -289,7 +290,7 @@ def compute_loss(images, captions, original_images, vilt_model, images_embedding
     device = torch.device(dev)
     sample_set = list(range(len(images)))
     all_dot_products = texts_embeddings.matmul(images_embeddings.T)
-    dual_encoder_loss = getattr(torch, reduction_in_loss)(torch.diagonal(-log_softmax_dim_1(all_dot_products), 0))
+    dual_encoder_loss = getattr(torch, reduction_in_loss)(torch.neg(torch.diagonal(log_softmax_dim_1(all_dot_products), 0)))
     transformed_images = [vilt_transform(original_image).to(device) for original_image in original_images]
     list_of_student_scores_with_temperature = []
     list_of_teacher_distributions = []
@@ -314,7 +315,6 @@ def compute_loss(images, captions, original_images, vilt_model, images_embedding
     teacher_distributions_from_temperature = torch.stack(list_of_teacher_distributions)
 
     distillation_loss = cross_entropy_loss(student_scores_with_temperature, teacher_distributions_from_temperature)
-    print(f' distillation_loss {distillation_loss}, dual_encoder_loss {dual_encoder_loss}')
     loss = distillation_loss + alpha * dual_encoder_loss
     return loss
 
@@ -383,8 +383,8 @@ def train(output_model_path: str,
         a = torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024
         print(f'After moving models to GPU total_memory {t} GB, reserved {r} GB, allocated {a} GB')
 
-    optimizer = torch.optim.Adam([{'params': image_encoder.parameters()}, {'params': text_encoder.parameters()}],
-                                lr=learning_rate)
+    optimizer = torch.optim.SGD([{'params': image_encoder.parameters()}, {'params': text_encoder.parameters()}],
+                                 lr=learning_rate)
     optimizer.zero_grad()
 
     train_losses_epochs = []
@@ -534,7 +534,7 @@ def train(output_model_path: str,
                     f'\nEpoch finished in {time.time() - epoch_start} s, saving model to {image_file_path_dump}',
                     'green'))
                 val_loss = validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
-                                           negative_batch_size, temperature, alpha)
+                                           negative_batch_size, temperature, alpha, reduction_in_loss)
                 val_losses_epochs.append(np.mean(np.array(val_loss)))
                 train_losses_epochs.append(np.mean(np.array(train_loss)))
                 print(colored(
@@ -604,7 +604,8 @@ def main(*args, **kwargs):
         batch_size=8,
         negative_batch_size=4,
         dataloader_num_worker=1,
-        learning_rate=0.001)
+        learning_rate=0.001,
+        reduction_in_loss='mean')
 
 
 if __name__ == '__main__':

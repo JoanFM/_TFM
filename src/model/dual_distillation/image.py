@@ -53,5 +53,6 @@ class ImageEncoder(nn.Module):
     def forward(self, x):
         x = self.feature_extractor(x)
         x = torch.flatten(x, 1)
-        result = self.common_space_embedding(x)
+        x = self.common_space_embedding(x)
+        result = torch.nn.functional.normalize(x, p=2, dim=1)
         return result
