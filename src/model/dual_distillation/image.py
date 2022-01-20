@@ -13,7 +13,6 @@ class DenseVisualFeatureExtractor(nn.Module):
                  ):
         super().__init__()
         import torchvision.models as models
-        self.pool_fn = None
         self.model = getattr(models, backbone_model)(pretrained=True)
         self.layer = self.model._modules.get('avgpool')
 
@@ -53,6 +52,6 @@ class ImageEncoder(nn.Module):
 
     def forward(self, x):
         x = self.feature_extractor(x)
-        x = x.view(x.size()[0], -1)
+        x = torch.flatten(x, 1)
         result = self.common_space_embedding(x)
         return result

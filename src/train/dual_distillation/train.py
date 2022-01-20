@@ -407,7 +407,7 @@ def train(output_model_path: str,
         for epoch in range(num_epochs):
             train_data_loader = get_captions_image_data_loader(root=DATASET_ROOT_PATH,
                                                                split_root=DATASET_SPLIT_ROOT_PATH,
-                                                               split='train',
+                                                               split='val',
                                                                shuffle=True,
                                                                num_workers=dataloader_num_worker,
                                                                batch_size=batch_size,
@@ -599,9 +599,10 @@ def main(*args, **kwargs):
         word2vec_model_path=TEXT_WORD2_VEC_MODEL_PATH,
         image_encoder_backbone_model='resnet50',
         vilt_model_path=VILT_BASE_MODEL_LOAD_PATH,
-        batch_size=8,
-        negative_batch_size=4,
-        dataloader_num_worker=1)
+        batch_size=128,
+        negative_batch_size=8,
+        dataloader_num_worker=1,
+        learning_rate=0.001)
 
 
 if __name__ == '__main__':
