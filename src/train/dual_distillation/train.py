@@ -216,6 +216,7 @@ def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negativ
     """
     Runs a loop to compute the validation loss
 
+    :param reduction_in_loss:
     :param alpha:
     :param temperature:
     :param negative_batch_size:
@@ -252,7 +253,7 @@ def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negativ
             original_images = images
             images_embeddings = image_encoder(torch.stack(image_tensors).to(device)).to(device)
             texts_embeddings = text_encoder(captions).to(device)
-            loss = compute_loss(images, captions, original_images, vilt_model, images_embeddings,
+            loss = compute_loss(images, captions, matching_filenames, original_images, vilt_model, images_embeddings,
                                 texts_embeddings,
                                 negative_batch_size, temperature, alpha, reduction_in_loss)
             val_loss.append(loss.item())
@@ -280,8 +281,20 @@ def collate_images(batch, *args, **kwargs):
     return filenames, pil_images
 
 
-def compute_loss(images, captions, original_images, vilt_model, images_embeddings, texts_embeddings,
+def compute_loss(images, captions, matching_filenames, original_images, vilt_model, images_embeddings, texts_embeddings,
                  negative_batch_size, temperature, alpha, reduction_in_loss):
+
+    def _get_negative_images(csample_set, i):
+        MAX_TRIALS = 5
+
+        negative_ids = random.sample(csample_set, negative_batch_size - 1)
+        # make sure we do not pick a false negative
+        trials = 0
+        while matching_filenames[i] in [matching_filenames[j] for j in negative_ids] and trials < MAX_TRIALS:
+            negative_ids = random.sample(csample_set, negative_batch_size - 1)
+            trials += 1
+        return negative_ids
+
     cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction=reduction_in_loss)
     if torch.cuda.is_available():
         dev = 'cuda:0'
@@ -290,14 +303,17 @@ def compute_loss(images, captions, original_images, vilt_model, images_embedding
     device = torch.device(dev)
     sample_set = list(range(len(images)))
     all_dot_products = texts_embeddings.matmul(images_embeddings.T)
+    targets = torch.Tensor(list(range(len(images)))).to(dtype=torch.long)
     dual_encoder_loss = getattr(torch, reduction_in_loss)(torch.neg(torch.diagonal(log_softmax_dim_1(all_dot_products), 0)))
+    aux = torch.nn.CrossEntropyLoss()(all_dot_products, targets)
+
     transformed_images = [vilt_transform(original_image).to(device) for original_image in original_images]
     list_of_student_scores_with_temperature = []
     list_of_teacher_distributions = []
     for i, (image, caption) in enumerate(zip(images, captions)):
         csample_set = copy.copy(sample_set)
         csample_set.remove(i)
-        negative_images_indices = random.sample(csample_set, negative_batch_size - 1)
+        negative_images_indices = _get_negative_images(csample_set, i)
         transformed_negative_images = [transformed_images[j] for j in negative_images_indices]
         transformed_positive_image = vilt_transform(image)
         student_scores = all_dot_products[i, [i] + negative_images_indices]
@@ -327,13 +343,14 @@ def train(output_model_path: str,
           batch_size: int = 8,
           negative_batch_size: int = 4,
           learning_rate: float = 0.001,
-          temperature=10,
+          temperature=5,
           dataloader_num_worker=1,
-          reduction_in_loss='sum'
+          reduction_in_loss='mean'
           ):
     """
     Train the model to have an image encoder that encodes into sparse embeddings matching the text encoder's outputs
 
+    :param reduction_in_loss:
     :param dataloader_num_worker: num worker to use in dataloader
     :param temperature:
     :param negative_batch_size:
@@ -410,7 +427,7 @@ def train(output_model_path: str,
             train_data_loader = get_captions_image_data_loader(root=DATASET_ROOT_PATH,
                                                                split_root=DATASET_SPLIT_ROOT_PATH,
                                                                split='val',
-                                                               shuffle=True,
+                                                               shuffle=False,
                                                                num_workers=dataloader_num_worker,
                                                                batch_size=batch_size,
                                                                collate_fn=collate)
@@ -418,7 +435,7 @@ def train(output_model_path: str,
             val_data_loader = get_captions_image_data_loader(root=DATASET_ROOT_PATH,
                                                              split_root=DATASET_SPLIT_ROOT_PATH,
                                                              split='val',
-                                                             shuffle=True,
+                                                             shuffle=False,
                                                              num_workers=dataloader_num_worker,
                                                              batch_size=batch_size,
                                                              collate_fn=collate)
@@ -472,7 +489,7 @@ def train(output_model_path: str,
                         a = torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024
                         print(
                             f'After computing images and texts embeddings for all batch total_memory {t} GB, reserved {r} GB, allocated {a} GB')
-                    loss = compute_loss(images, captions, original_images, vilt_model, images_embeddings,
+                    loss = compute_loss(images, captions, matching_filenames, original_images, vilt_model, images_embeddings,
                                         texts_embeddings,
                                         negative_batch_size, temperature, alpha, reduction_in_loss)
 
@@ -505,7 +522,7 @@ def train(output_model_path: str,
                     #     if no_zeros == 0:
                     #         print(f'\nParam text_encoder.{param_after_name} is not updated')
 
-                    if batch_id % 1 == 0:
+                    if batch_id % 50 == 0:
                         print(colored(
                             f'\n[{batch_id}] \t training loss:\t {np.mean(np.array(train_loss))} \t time elapsed:\t {time.time() - time_start} s',
                             'green'))
@@ -555,7 +572,9 @@ def train(output_model_path: str,
             with open(f'train_loss-{epoch}', 'wb') as f:
                 pickle.dump(train_loss, f)
 
-            if epoch % 1 == 0:
+            test_evaluations = {}
+            val_evaluations = {}
+            if epoch % 1 == 0 and epoch != 0:
                 test_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
                                                    batch_size, root=DATASET_ROOT_PATH,
                                                    split_root=DATASET_SPLIT_ROOT_PATH,
@@ -604,7 +623,7 @@ def main(*args, **kwargs):
         batch_size=8,
         negative_batch_size=4,
         dataloader_num_worker=1,
-        learning_rate=0.001,
+        learning_rate=0.1,
         reduction_in_loss='mean')
 
 
