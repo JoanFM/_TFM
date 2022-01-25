@@ -283,7 +283,6 @@ def collate_images(batch, *args, **kwargs):
 
 def compute_loss(images, captions, matching_filenames, original_images, vilt_model, images_embeddings, texts_embeddings,
                  negative_batch_size, temperature, alpha, reduction_in_loss):
-
     def _get_negative_images(csample_set, i):
         MAX_TRIALS = 5
 
@@ -303,13 +302,14 @@ def compute_loss(images, captions, matching_filenames, original_images, vilt_mod
     device = torch.device(dev)
     sample_set = list(range(len(images)))
     all_dot_products = texts_embeddings.matmul(images_embeddings.T)
-    targets = torch.Tensor(list(range(len(images)))).to(dtype=torch.long)
-    dual_encoder_loss = getattr(torch, reduction_in_loss)(torch.neg(torch.diagonal(log_softmax_dim_1(all_dot_products), 0)))
-    aux = torch.nn.CrossEntropyLoss()(all_dot_products, targets)
+    dual_encoder_loss = getattr(torch, reduction_in_loss)(
+        torch.neg(torch.diagonal(log_softmax_dim_1(all_dot_products), 0)))
 
     transformed_images = [vilt_transform(original_image).to(device) for original_image in original_images]
     list_of_student_scores_with_temperature = []
     list_of_teacher_distributions = []
+
+    # setting device on GPU if available, else CPU
     for i, (image, caption) in enumerate(zip(images, captions)):
         csample_set = copy.copy(sample_set)
         csample_set.remove(i)
@@ -400,7 +400,7 @@ def train(output_model_path: str,
         a = torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024
         print(f'After moving models to GPU total_memory {t} GB, reserved {r} GB, allocated {a} GB')
 
-    optimizer = torch.optim.SGD([{'params': image_encoder.parameters()}, {'params': text_encoder.parameters()}],
+    optimizer = torch.optim.Adam([{'params': image_encoder.parameters()}, {'params': text_encoder.parameters()}],
                                  lr=learning_rate)
     optimizer.zero_grad()
 
@@ -489,7 +489,8 @@ def train(output_model_path: str,
                         a = torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024
                         print(
                             f'After computing images and texts embeddings for all batch total_memory {t} GB, reserved {r} GB, allocated {a} GB')
-                    loss = compute_loss(images, captions, matching_filenames, original_images, vilt_model, images_embeddings,
+                    loss = compute_loss(images, captions, matching_filenames, original_images, vilt_model,
+                                        images_embeddings,
                                         texts_embeddings,
                                         negative_batch_size, temperature, alpha, reduction_in_loss)
 
@@ -522,7 +523,7 @@ def train(output_model_path: str,
                     #     if no_zeros == 0:
                     #         print(f'\nParam text_encoder.{param_after_name} is not updated')
 
-                    if batch_id % 50 == 0:
+                    if batch_id % 1 == 0:
                         print(colored(
                             f'\n[{batch_id}] \t training loss:\t {np.mean(np.array(train_loss))} \t time elapsed:\t {time.time() - time_start} s',
                             'green'))
