@@ -125,8 +125,49 @@ class ImageConcatenatedCaptionsFlickr30kDataset(Flickr30kDataset):
         return self.images_length
 
 
+from torch.utils.data.sampler import BatchSampler, RandomSampler, SequentialSampler
+
+
+class SampleBatchNoCommonImmages(BatchSampler):
+    """
+    Class guarantees that in the same batch not 2 captions with the same corresponding image appear in the same batch
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __iter__(self):
+        from collections import defaultdict
+        idx_by_matching_filename = defaultdict(list)
+        for idx in self.sampler:
+            corresponding_positive_image_filename = self.sampler.data_source.matching_filenames[idx]
+            idx_by_matching_filename[corresponding_positive_image_filename].append(idx)
+            if len(idx_by_matching_filename.keys()) == self.batch_size:
+                batch_to_return = []
+                keys = list(idx_by_matching_filename.keys())
+                for key in keys:
+                    batch_to_return.append(idx_by_matching_filename[key].pop())
+                    if len(idx_by_matching_filename[key]) == 0:
+                        del idx_by_matching_filename[key]
+                yield batch_to_return
+
+        # Here all the `idx` of the sampler have been put in the dictionary
+        if not self.drop_last:
+            end = False
+            while not end:
+                batch_to_return = []
+                keys = list(idx_by_matching_filename.keys())
+                for key in keys:
+                    batch_to_return.append(idx_by_matching_filename[key].pop())
+                    if len(idx_by_matching_filename[key]) == 0:
+                        del idx_by_matching_filename[key]
+
+                end = (len(idx_by_matching_filename.keys()) == 0)
+                yield batch_to_return
+
+
 def get_concatenated_captions_image_data_loader(root, split_root, split, batch_size=8, shuffle=False,
-                                                num_workers=1, **kwargs):
+                                                num_workers=1, batch_sampling=False, **kwargs):
     """Returns torch.utils.data.DataLoader for custom coco dataset."""
 
     dataset = ImageConcatenatedCaptionsFlickr30kDataset(root=root, split_root=split_root, split=split, **kwargs)
@@ -136,29 +177,47 @@ def get_concatenated_captions_image_data_loader(root, split_root, split, batch_s
                                               shuffle=shuffle,
                                               pin_memory=True,
                                               num_workers=num_workers,
-                                              collate_fn=kwargs['collate_fn'] if 'collate_fn' in kwargs else None)
+                                              collate_fn=kwargs['collate_fn'] if 'collate_fn' in kwargs else None,
+                                              batch_sampler=kwargs[
+                                                  'batch_sampler'] if 'batch_sampler' in kwargs else None)
 
     return data_loader
 
 
 def get_captions_image_data_loader(root, split_root, split, batch_size=8, shuffle=False,
-                                   num_workers=1, **kwargs):
+                                   num_workers=1, batch_sampling=False, **kwargs):
     """Returns torch.utils.data.DataLoader for custom coco dataset."""
 
     dataset = ImageCaptionFlickr30kDataset(root=root, split_root=split_root, split=split, **kwargs)
-    # Data loader
-    data_loader = torch.utils.data.DataLoader(dataset=dataset,
-                                              batch_size=batch_size,
-                                              shuffle=shuffle,
-                                              pin_memory=True,
-                                              num_workers=num_workers,
-                                              collate_fn=kwargs['collate_fn'] if 'collate_fn' in kwargs else None)
+
+    batch_sampler = None
+
+    if batch_sampling:
+        if shuffle:
+            sampler = RandomSampler(dataset, generator=None)
+        else:
+            sampler = SequentialSampler(dataset)
+
+        batch_sampler = SampleBatchNoCommonImmages(sampler, batch_size, False)
+        # Data loader
+        data_loader = torch.utils.data.DataLoader(dataset=dataset,
+                                                  pin_memory=True,
+                                                  num_workers=num_workers,
+                                                  collate_fn=kwargs['collate_fn'] if 'collate_fn' in kwargs else None,
+                                                  batch_sampler=batch_sampler)
+    else:
+        data_loader = torch.utils.data.DataLoader(dataset=dataset,
+                                                  batch_size=batch_size,
+                                                  shuffle=shuffle,
+                                                  pin_memory=True,
+                                                  num_workers=num_workers,
+                                                  collate_fn=kwargs['collate_fn'] if 'collate_fn' in kwargs else None)
 
     return data_loader
 
 
 def get_image_data_loader(root, split_root, split, batch_size=8, shuffle=False,
-                          num_workers=1, **kwargs):
+                          num_workers=1, batch_sampling=False, **kwargs):
     """Returns torch.utils.data.DataLoader for custom coco dataset."""
 
     dataset = ImageFlickr30kDataset(root=root, split_root=split_root, split=split, **kwargs)
@@ -171,13 +230,15 @@ def get_image_data_loader(root, split_root, split, batch_size=8, shuffle=False,
                                               shuffle=shuffle,
                                               pin_memory=True,
                                               num_workers=num_workers,
-                                              collate_fn=kwargs['collate_fn'] if 'collate_fn' in kwargs else None)
+                                              collate_fn=kwargs['collate_fn'] if 'collate_fn' in kwargs else None,
+                                              batch_sampler=kwargs[
+                                                  'batch_sampler'] if 'batch_sampler' in kwargs else None)
 
     return data_loader
 
 
 def get_captions_data_loader(root, split_root, split, batch_size=8, shuffle=False,
-                             num_workers=1, **kwargs):
+                             num_workers=1, batch_sampling=False, **kwargs):
     """Returns torch.utils.data.DataLoader for custom coco dataset."""
 
     dataset = CaptionFlickr30kDataset(root=root, split_root=split_root, split=split, **kwargs)
@@ -187,6 +248,8 @@ def get_captions_data_loader(root, split_root, split, batch_size=8, shuffle=Fals
                                               shuffle=shuffle,
                                               pin_memory=True,
                                               num_workers=num_workers,
-                                              collate_fn=kwargs['collate_fn'] if 'collate_fn' in kwargs else None)
+                                              collate_fn=kwargs['collate_fn'] if 'collate_fn' in kwargs else None,
+                                              batch_sampler=kwargs[
+                                                  'batch_sampler'] if 'batch_sampler' in kwargs else None)
 
     return data_loader

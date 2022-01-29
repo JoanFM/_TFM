@@ -430,7 +430,8 @@ def train(output_model_path: str,
                                                                shuffle=True,
                                                                num_workers=dataloader_num_worker,
                                                                batch_size=batch_size,
-                                                               collate_fn=collate)
+                                                               collate_fn=collate,
+                                                               batch_sampling=True)
 
             val_data_loader = get_captions_image_data_loader(root=DATASET_ROOT_PATH,
                                                              split_root=DATASET_SPLIT_ROOT_PATH,
@@ -448,7 +449,6 @@ def train(output_model_path: str,
                      check_tty=False) as training_bar:
 
                 for batch_id, (matching_filenames, images, captions) in enumerate(train_data_loader):
-
                     image_tensors = []
                     for i in images:
                         image_tensors.append(dual_encoder_transform(i))
