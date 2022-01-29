@@ -5,6 +5,7 @@ import random
 import copy
 import numpy as np
 import pickle
+import math
 from typing import Optional, Union
 
 from progress.bar import Bar
@@ -286,7 +287,7 @@ def compute_loss(images, captions, matching_filenames, original_images, vilt_mod
     def _get_negative_images(csample_set, i):
         MAX_TRIALS = 5
 
-        negative_ids = random.sample(csample_set, negative_batch_size - 1)
+        negative_ids = random.sample(csample_set, min(negative_batch_size, len(images)) - 1)
         # make sure we do not pick a false negative
         trials = 0
         while matching_filenames[i] in [matching_filenames[j] for j in negative_ids] and trials < MAX_TRIALS:
@@ -315,16 +316,16 @@ def compute_loss(images, captions, matching_filenames, original_images, vilt_mod
         csample_set.remove(i)
         negative_images_indices = _get_negative_images(csample_set, i)
         transformed_negative_images = [transformed_images[j] for j in negative_images_indices]
-        transformed_positive_image = vilt_transform(image)
+        transformed_positive_image = transformed_images[i]
         student_scores = all_dot_products[i, [i] + negative_images_indices]
         list_of_student_scores_with_temperature.append(student_scores / temperature)
 
         with torch.no_grad():
             teacher_scores = vilt_model.score_query_vs_images(caption,
-                                                              [
-                                                                  transformed_positive_image] + transformed_negative_images)
+                                                              [transformed_positive_image] + transformed_negative_images)
             teacher_distrib_p_bi = softmax_dim_0(
                 teacher_scores / temperature)
+
             list_of_teacher_distributions.append(teacher_distrib_p_bi)
 
     student_scores_with_temperature = torch.stack(list_of_student_scores_with_temperature)
@@ -343,7 +344,7 @@ def train(output_model_path: str,
           batch_size: int = 8,
           negative_batch_size: int = 4,
           learning_rate: float = 0.001,
-          temperature=1,
+          temperature=10,
           dataloader_num_worker=1,
           reduction_in_loss='mean'
           ):
@@ -425,13 +426,13 @@ def train(output_model_path: str,
 
         for epoch in range(num_epochs):
             train_data_loader = get_captions_image_data_loader(root=DATASET_ROOT_PATH,
-                                                               split_root=DATASET_SPLIT_ROOT_PATH,
-                                                               split='val',
-                                                               shuffle=True,
-                                                               num_workers=dataloader_num_worker,
-                                                               batch_size=batch_size,
-                                                               collate_fn=collate,
-                                                               batch_sampling=True)
+                                                           split_root=DATASET_SPLIT_ROOT_PATH,
+                                                           split='val',
+                                                           shuffle=True,
+                                                           num_workers=dataloader_num_worker,
+                                                           batch_size=batch_size,
+                                                           collate_fn=collate,
+                                                           batch_sampling=True)
 
             val_data_loader = get_captions_image_data_loader(root=DATASET_ROOT_PATH,
                                                              split_root=DATASET_SPLIT_ROOT_PATH,
@@ -445,9 +446,9 @@ def train(output_model_path: str,
             epoch_start = time.time()
             time_start = time.time()
 
-            with Bar(f'Batch in epoch {epoch}', max=len(train_data_loader.dataset) / batch_size,
+            print(f' ')
+            with Bar(f'Batch in epoch {epoch}', max=math.ceil(len(train_data_loader.dataset) / batch_size),
                      check_tty=False) as training_bar:
-
                 for batch_id, (matching_filenames, images, captions) in enumerate(train_data_loader):
                     image_tensors = []
                     for i in images:
@@ -547,7 +548,6 @@ def train(output_model_path: str,
                     training_bar.next()
                 image_file_path_dump = output_model_path + '/model-inter-' + str(epoch + 1) + '-final-image.pt'
                 text_file_path_dump = output_model_path + '/model-inter-' + str(epoch + 1) + '-final-text.pt'
-
                 print(colored(
                     f'\nEpoch finished in {time.time() - epoch_start} s, saving model to {image_file_path_dump}',
                     'green'))
