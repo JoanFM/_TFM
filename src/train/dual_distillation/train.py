@@ -212,7 +212,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
         return t2i_evaluations
 
 
-def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negative_batch_size, temperature, alpha,
+def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negative_batch_size, temperature, alpha, beta,
                     reduction_in_loss):
     """
     Runs a loop to compute the validation loss
@@ -256,7 +256,7 @@ def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negativ
             texts_embeddings = text_encoder(captions).to(device)
             loss = compute_loss(images, captions, matching_filenames, original_images, vilt_model, images_embeddings,
                                 texts_embeddings,
-                                negative_batch_size, temperature, alpha, reduction_in_loss)
+                                negative_batch_size, temperature, alpha, beta, reduction_in_loss)
             val_loss.append(loss.item())
 
     return val_loss
@@ -283,7 +283,7 @@ def collate_images(batch, *args, **kwargs):
 
 
 def compute_loss(images, captions, matching_filenames, original_images, vilt_model, images_embeddings, texts_embeddings,
-                 negative_batch_size, temperature, alpha, reduction_in_loss):
+                 negative_batch_size, temperature, alpha, beta, reduction_in_loss):
     def _get_negative_images(csample_set, i):
         MAX_TRIALS = 5
 
@@ -332,7 +332,7 @@ def compute_loss(images, captions, matching_filenames, original_images, vilt_mod
     teacher_distributions_from_temperature = torch.stack(list_of_teacher_distributions)
 
     distillation_loss = cross_entropy_loss(student_scores_with_temperature, teacher_distributions_from_temperature)
-    loss = distillation_loss + alpha * dual_encoder_loss
+    loss = beta * distillation_loss + alpha * dual_encoder_loss
     return loss
 
 
@@ -346,6 +346,8 @@ def train(output_model_path: str,
           learning_rate: float = 0.001,
           temperature=10,
           dataloader_num_worker=1,
+          alpha=0.1,
+          beta=1,
           reduction_in_loss='mean'
           ):
     """
@@ -410,7 +412,6 @@ def train(output_model_path: str,
     test_evals_epochs = []
     val_evals_epochs = []
     train_evals_epochs = []
-    alpha = temperature * temperature * 0.001
 
     # run_evaluations(image_encoder, text_encoder, vilt_model,
     #                 batch_size, root=DATASET_ROOT_PATH,
@@ -493,7 +494,7 @@ def train(output_model_path: str,
                     loss = compute_loss(images, captions, matching_filenames, original_images, vilt_model,
                                         images_embeddings,
                                         texts_embeddings,
-                                        negative_batch_size, temperature, alpha, reduction_in_loss)
+                                        negative_batch_size, temperature, alpha, beta, reduction_in_loss)
 
                     # before_update_image = {}
                     # for param_name, param in image_encoder.named_parameters():
@@ -539,7 +540,7 @@ def train(output_model_path: str,
                                        batch_id) + '-text.pt')
                     if batch_id % 200 == 0 and batch_id != 0:
                         val_loss = validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
-                                                   negative_batch_size, temperature, alpha, reduction_in_loss)
+                                                   negative_batch_size, temperature, alpha, beta, reduction_in_loss)
                         print(colored(
                             f'\n[{batch_id}]\tvalidation loss:\t{np.mean(np.array(val_loss))}\ttime elapsed:\t{time.time() - time_start} s',
                             'yellow'))
@@ -552,7 +553,7 @@ def train(output_model_path: str,
                     f'\nEpoch finished in {time.time() - epoch_start} s, saving model to {image_file_path_dump}',
                     'green'))
                 val_loss = validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
-                                           negative_batch_size, temperature, alpha, reduction_in_loss)
+                                           negative_batch_size, temperature, alpha, beta, reduction_in_loss)
                 val_losses_epochs.append(np.mean(np.array(val_loss)))
                 train_losses_epochs.append(np.mean(np.array(train_loss)))
                 print(colored(
@@ -625,6 +626,8 @@ def main(*args, **kwargs):
         negative_batch_size=4,
         dataloader_num_worker=1,
         learning_rate=0.1,
+        alpha=0.1,
+        beta=1,
         reduction_in_loss='mean')
 
 
