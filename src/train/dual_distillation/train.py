@@ -284,17 +284,6 @@ def collate_images(batch, *args, **kwargs):
 
 def compute_loss(images, captions, matching_filenames, original_images, vilt_model, images_embeddings, texts_embeddings,
                  negative_batch_size, temperature, alpha, beta, reduction_in_loss):
-    def _get_negative_images(csample_set, i):
-        MAX_TRIALS = 5
-
-        negative_ids = random.sample(csample_set, min(negative_batch_size, len(images)) - 1)
-        # make sure we do not pick a false negative
-        trials = 0
-        while matching_filenames[i] in [matching_filenames[j] for j in negative_ids] and trials < MAX_TRIALS:
-            negative_ids = random.sample(csample_set, negative_batch_size - 1)
-            trials += 1
-        return negative_ids
-
     cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction=reduction_in_loss)
     if torch.cuda.is_available():
         dev = 'cuda:0'
@@ -310,11 +299,15 @@ def compute_loss(images, captions, matching_filenames, original_images, vilt_mod
     list_of_student_scores_with_temperature = []
     list_of_teacher_distributions = []
 
+    print(f' all_dot_products {all_dot_products}')
+    print(f' all_dot_products diagonal {torch.diagonal(all_dot_products)}')
+    print(f' dual_encoder_loss {dual_encoder_loss}')
+
     # setting device on GPU if available, else CPU
     for i, (image, caption) in enumerate(zip(images, captions)):
         csample_set = copy.copy(sample_set)
         csample_set.remove(i)
-        negative_images_indices = _get_negative_images(csample_set, i)
+        negative_images_indices = random.sample(csample_set, min(negative_batch_size, len(images)) - 1)
         transformed_negative_images = [transformed_images[j] for j in negative_images_indices]
         transformed_positive_image = transformed_images[i]
         student_scores = all_dot_products[i, [i] + negative_images_indices]
@@ -322,7 +315,8 @@ def compute_loss(images, captions, matching_filenames, original_images, vilt_mod
 
         with torch.no_grad():
             teacher_scores = vilt_model.score_query_vs_images(caption,
-                                                              [transformed_positive_image] + transformed_negative_images)
+                                                              [
+                                                                  transformed_positive_image] + transformed_negative_images)
             teacher_distrib_p_bi = softmax_dim_0(
                 teacher_scores / temperature)
 
@@ -427,18 +421,18 @@ def train(output_model_path: str,
 
         for epoch in range(num_epochs):
             train_data_loader = get_captions_image_data_loader(root=DATASET_ROOT_PATH,
-                                                           split_root=DATASET_SPLIT_ROOT_PATH,
-                                                           split='val',
-                                                           shuffle=True,
-                                                           num_workers=dataloader_num_worker,
-                                                           batch_size=batch_size,
-                                                           collate_fn=collate,
-                                                           batch_sampling=True)
+                                                               split_root=DATASET_SPLIT_ROOT_PATH,
+                                                               split='val',
+                                                               shuffle=False,
+                                                               num_workers=dataloader_num_worker,
+                                                               batch_size=batch_size,
+                                                               collate_fn=collate,
+                                                               batch_sampling=True)
 
             val_data_loader = get_captions_image_data_loader(root=DATASET_ROOT_PATH,
                                                              split_root=DATASET_SPLIT_ROOT_PATH,
                                                              split='val',
-                                                             shuffle=True,
+                                                             shuffle=False,
                                                              num_workers=dataloader_num_worker,
                                                              batch_size=batch_size,
                                                              collate_fn=collate)
@@ -451,6 +445,8 @@ def train(output_model_path: str,
             with Bar(f'Batch in epoch {epoch}', max=math.ceil(len(train_data_loader.dataset) / batch_size),
                      check_tty=False) as training_bar:
                 for batch_id, (matching_filenames, images, captions) in enumerate(train_data_loader):
+                    if batch_id > 0:
+                        break
                     image_tensors = []
                     for i in images:
                         image_tensors.append(dual_encoder_transform(i))
