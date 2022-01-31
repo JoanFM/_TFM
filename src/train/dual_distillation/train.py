@@ -572,7 +572,7 @@ def train(output_model_path: str,
 
             test_evaluations = {}
             val_evaluations = {}
-            if epoch % 1 == 0 and epoch != 0:
+            if epoch % 500 == 0 and epoch != 0:
                 test_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
                                                    batch_size, root=DATASET_ROOT_PATH,
                                                    split_root=DATASET_SPLIT_ROOT_PATH,

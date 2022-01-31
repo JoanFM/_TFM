@@ -58,7 +58,7 @@ class TextEncoder(nn.Module):
             for token in nlp(sent):
                 try:
                     sent_tokens.append(self.gensim_model.get_index(_get_lemma(token)))
-                except:
+                except KeyError as ex:
                     continue
             tokens.append(self._zero_pad_tensor_token(
                 torch.LongTensor(sent_tokens), self.max_length_tokens))
