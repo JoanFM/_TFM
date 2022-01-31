@@ -234,16 +234,14 @@ def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negativ
         dev = 'cpu'
 
     device = torch.device(dev)
-    image_encoder.train(False)
-    image_encoder.feature_extractor.train(False)
-    image_encoder.common_space_embedding.train(False)
-    text_encoder.train(False)
-    text_encoder.word_embd.train(False)
-    text_encoder.fc1.train(False)
-    text_encoder.fc2.train(False)
-    image_encoder.to(device)
-    text_encoder.to(device)
     with torch.no_grad():
+        image_encoder.train(False)
+        image_encoder.feature_extractor.train(False)
+        image_encoder.common_space_embedding.train(False)
+        text_encoder.train(False)
+        text_encoder.word_embd.train(False)
+        text_encoder.fc1.train(False)
+        text_encoder.fc2.train(False)
         val_loss = []
         for batch_id, (matching_filenames, images, captions) in enumerate(dataloader):
 
@@ -296,36 +294,35 @@ def compute_loss(images, captions, matching_filenames, original_images, vilt_mod
         torch.neg(torch.diagonal(log_softmax_dim_1(all_dot_products), 0)))
 
     transformed_images = [vilt_transform(original_image).to(device) for original_image in original_images]
-    list_of_student_scores_with_temperature = []
-    list_of_teacher_distributions = []
+    if beta > 0:
+        list_of_student_scores_with_temperature = []
+        list_of_teacher_distributions = []
 
-    print(f' all_dot_products {all_dot_products}')
-    print(f' all_dot_products diagonal {torch.diagonal(all_dot_products)}')
-    print(f' dual_encoder_loss {dual_encoder_loss}')
+        # setting device on GPU if available, else CPU
+        for i, (image, caption) in enumerate(zip(images, captions)):
+            csample_set = copy.copy(sample_set)
+            csample_set.remove(i)
+            negative_images_indices = random.sample(csample_set, min(negative_batch_size, len(images)) - 1)
+            transformed_negative_images = [transformed_images[j] for j in negative_images_indices]
+            transformed_positive_image = transformed_images[i]
+            student_scores = all_dot_products[i, [i] + negative_images_indices]
+            list_of_student_scores_with_temperature.append(student_scores / temperature)
 
-    # setting device on GPU if available, else CPU
-    for i, (image, caption) in enumerate(zip(images, captions)):
-        csample_set = copy.copy(sample_set)
-        csample_set.remove(i)
-        negative_images_indices = random.sample(csample_set, min(negative_batch_size, len(images)) - 1)
-        transformed_negative_images = [transformed_images[j] for j in negative_images_indices]
-        transformed_positive_image = transformed_images[i]
-        student_scores = all_dot_products[i, [i] + negative_images_indices]
-        list_of_student_scores_with_temperature.append(student_scores / temperature)
+            with torch.no_grad():
+                teacher_scores = vilt_model.score_query_vs_images(caption,
+                                                                  [
+                                                                      transformed_positive_image] + transformed_negative_images)
+                teacher_distrib_p_bi = softmax_dim_0(
+                    teacher_scores / temperature)
 
-        with torch.no_grad():
-            teacher_scores = vilt_model.score_query_vs_images(caption,
-                                                              [
-                                                                  transformed_positive_image] + transformed_negative_images)
-            teacher_distrib_p_bi = softmax_dim_0(
-                teacher_scores / temperature)
+                list_of_teacher_distributions.append(teacher_distrib_p_bi)
 
-            list_of_teacher_distributions.append(teacher_distrib_p_bi)
+        student_scores_with_temperature = torch.stack(list_of_student_scores_with_temperature)
+        teacher_distributions_from_temperature = torch.stack(list_of_teacher_distributions)
 
-    student_scores_with_temperature = torch.stack(list_of_student_scores_with_temperature)
-    teacher_distributions_from_temperature = torch.stack(list_of_teacher_distributions)
-
-    distillation_loss = cross_entropy_loss(student_scores_with_temperature, teacher_distributions_from_temperature)
+        distillation_loss = cross_entropy_loss(student_scores_with_temperature, teacher_distributions_from_temperature)
+    else:
+        distillation_loss = 0
     loss = beta * distillation_loss + alpha * dual_encoder_loss
     return loss
 
@@ -372,30 +369,9 @@ def train(output_model_path: str,
     text_encoder = TextEncoder(model_path=word2vec_model_path)
     vilt_model = get_vilt_model(load_path=vilt_model_path)
 
-    if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
-        t = torch.cuda.get_device_properties(0).total_memory / 1024 / 1024 / 1024
-        r = torch.cuda.memory_reserved(0) / 1024 / 1024 / 1024
-        a = torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024
-        print(f'Before moving models to GPU total_memory {t} GB, reserved {r} GB, allocated {a} GB')
-
     image_encoder.to(device)
-    if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
-        t = torch.cuda.get_device_properties(0).total_memory / 1024 / 1024 / 1024
-        r = torch.cuda.memory_reserved(0) / 1024 / 1024 / 1024
-        a = torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024
-        print(f'After moving image encoder model to GPU total_memory {t} GB, reserved {r} GB, allocated {a} GB')
     text_encoder.to(device)
-    if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
-        t = torch.cuda.get_device_properties(0).total_memory / 1024 / 1024 / 1024
-        r = torch.cuda.memory_reserved(0) / 1024 / 1024 / 1024
-        a = torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024
-        print(f'After moving text encoder model to GPU total_memory {t} GB, reserved {r} GB, allocated {a} GB')
     vilt_model.to(device)
-    if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
-        t = torch.cuda.get_device_properties(0).total_memory / 1024 / 1024 / 1024
-        r = torch.cuda.memory_reserved(0) / 1024 / 1024 / 1024
-        a = torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024
-        print(f'After moving models to GPU total_memory {t} GB, reserved {r} GB, allocated {a} GB')
 
     optimizer = torch.optim.Adam([{'params': image_encoder.parameters()}, {'params': text_encoder.parameters()}],
                                  lr=learning_rate)
@@ -412,11 +388,6 @@ def train(output_model_path: str,
     #                 split_root=DATASET_SPLIT_ROOT_PATH,
     #                 split='test')
 
-    if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
-        t = torch.cuda.get_device_properties(0).total_memory / 1024 / 1024 / 1024
-        r = torch.cuda.memory_reserved(0) / 1024 / 1024 / 1024
-        a = torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024
-        print(f'After run evaluations total_memory {t} GB, reserved {r} GB, allocated {a} GB')
     with Bar('Epochs', max=num_epochs, check_tty=False) as epoch_bar:
 
         for epoch in range(num_epochs):
@@ -441,7 +412,6 @@ def train(output_model_path: str,
             epoch_start = time.time()
             time_start = time.time()
 
-            print(f' ')
             with Bar(f'Batch in epoch {epoch}', max=math.ceil(len(train_data_loader.dataset) / batch_size),
                      check_tty=False) as training_bar:
                 for batch_id, (matching_filenames, images, captions) in enumerate(train_data_loader):
@@ -460,66 +430,17 @@ def train(output_model_path: str,
                     text_encoder.fc2.train()
                     optimizer.zero_grad()
                     original_images = images
-                    if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
-                        t = torch.cuda.get_device_properties(0).total_memory / 1024 / 1024 / 1024
-                        r = torch.cuda.memory_reserved(0) / 1024 / 1024 / 1024
-                        a = torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024
-                        print(
-                            f'Before stacking {len(image_tensors)} image tensors to GPU total_memory {t} GB, reserved {r} GB, allocated {a} GB')
                     image_tensors = torch.stack(image_tensors).to(device)
-                    if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
-                        t = torch.cuda.get_device_properties(0).total_memory / 1024 / 1024 / 1024
-                        r = torch.cuda.memory_reserved(0) / 1024 / 1024 / 1024
-                        a = torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024
-                        print(
-                            f'Before encoding {len(image_tensors)} images to GPU total_memory {t} GB, reserved {r} GB, allocated {a} GB')
                     images_embeddings = image_encoder(image_tensors).to(device)
-                    if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
-                        t = torch.cuda.get_device_properties(0).total_memory / 1024 / 1024 / 1024
-                        r = torch.cuda.memory_reserved(0) / 1024 / 1024 / 1024
-                        a = torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024
-                        print(
-                            f'Before encoding {len(captions)} texts to GPU total_memory {t} GB, reserved {r} GB, allocated {a} GB')
                     texts_embeddings = text_encoder(captions).to(device)
-                    if dev == 'cuda:0' and os.getenv('CHECK_CUDA_MEM_USAGE', 'False') == 'True':
-                        t = torch.cuda.get_device_properties(0).total_memory / 1024 / 1024 / 1024
-                        r = torch.cuda.memory_reserved(0) / 1024 / 1024 / 1024
-                        a = torch.cuda.memory_allocated(0) / 1024 / 1024 / 1024
-                        print(
-                            f'After computing images and texts embeddings for all batch total_memory {t} GB, reserved {r} GB, allocated {a} GB')
                     loss = compute_loss(images, captions, matching_filenames, original_images, vilt_model,
                                         images_embeddings,
                                         texts_embeddings,
                                         negative_batch_size, temperature, alpha, beta, reduction_in_loss)
 
-                    # before_update_image = {}
-                    # for param_name, param in image_encoder.named_parameters():
-                    #     before_update_image[param_name] = 100*param
-                    # before_update_text = {}
-                    # for param_name, param in text_encoder.named_parameters():
-                    #     before_update_text[param_name] = 100*param
                     loss.backward()
                     train_loss.append(loss.item())
                     optimizer.step()
-                    # after_update_image = {}
-                    # for param_name, param in image_encoder.named_parameters():
-                    #     after_update_image[param_name] = 100*param
-                    # after_update_text = {}
-                    # for param_name, param in text_encoder.named_parameters():
-                    #     after_update_text[param_name] = 100*param
-                    #
-                    # for param_after_name, param_after in after_update_image.items():
-                    #     param_before = before_update_image[param_after_name]
-                    #     diff = param_after - param_before
-                    #     no_zeros = torch.count_nonzero(diff)
-                    #     if no_zeros == 0:
-                    #         print(f'\nParam image_encoder.{param_after_name} is not updated')
-                    # for param_after_name, param_after in after_update_text.items():
-                    #     param_before = before_update_text[param_after_name]
-                    #     diff = param_after - param_before
-                    #     no_zeros = torch.count_nonzero(diff)
-                    #     if no_zeros == 0:
-                    #         print(f'\nParam text_encoder.{param_after_name} is not updated')
 
                     if batch_id % 1 == 0:
                         print(colored(
@@ -548,8 +469,8 @@ def train(output_model_path: str,
                 print(colored(
                     f'\nEpoch finished in {time.time() - epoch_start} s, saving model to {image_file_path_dump}',
                     'green'))
-                val_loss = validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
-                                           negative_batch_size, temperature, alpha, beta, reduction_in_loss)
+                val_loss = [0] #validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
+                                #           negative_batch_size, temperature, alpha, beta, reduction_in_loss)
                 val_losses_epochs.append(np.mean(np.array(val_loss)))
                 train_losses_epochs.append(np.mean(np.array(train_loss)))
                 print(colored(
