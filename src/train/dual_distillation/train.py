@@ -290,6 +290,7 @@ def compute_loss(images, captions, matching_filenames, original_images, vilt_mod
     device = torch.device(dev)
     sample_set = list(range(len(images)))
     all_dot_products = texts_embeddings.matmul(images_embeddings.T)
+    print(f' dot_products diagonal {torch.diagonal(all_dot_products, 0)}')
     dual_encoder_loss = getattr(torch, reduction_in_loss)(
         torch.neg(torch.diagonal(log_softmax_dim_1(all_dot_products), 0)))
 
@@ -314,6 +315,8 @@ def compute_loss(images, captions, matching_filenames, original_images, vilt_mod
                                                                       transformed_positive_image] + transformed_negative_images)
                 teacher_distrib_p_bi = softmax_dim_0(
                     teacher_scores / temperature)
+
+                print(f' teacher_distrib_p_bi {teacher_distrib_p_bi}')
 
                 list_of_teacher_distributions.append(teacher_distrib_p_bi)
 
@@ -543,8 +546,9 @@ def main(*args, **kwargs):
         negative_batch_size=4,
         dataloader_num_worker=1,
         learning_rate=0.1,
-        alpha=0.1,
-        beta=1,
+        alpha=1,
+        temperature=10,
+        beta=0,
         reduction_in_loss='mean')
 
 
