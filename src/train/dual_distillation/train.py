@@ -290,7 +290,8 @@ def compute_loss(images, captions, matching_filenames, original_images, vilt_mod
     device = torch.device(dev)
     sample_set = list(range(len(images)))
     all_dot_products = texts_embeddings.matmul(images_embeddings.T)
-    print(f' dot_products diagonal {torch.diagonal(all_dot_products, 0)}')
+    if os.getenv('PRINT_DOT_PRODUCTS') == 'True':
+        print(f' dot_products diagonal {torch.diagonal(all_dot_products, 0)}')
     dual_encoder_loss = getattr(torch, reduction_in_loss)(
         torch.neg(torch.diagonal(log_softmax_dim_1(all_dot_products), 0)))
 
@@ -315,8 +316,6 @@ def compute_loss(images, captions, matching_filenames, original_images, vilt_mod
                                                                       transformed_positive_image] + transformed_negative_images)
                 teacher_distrib_p_bi = softmax_dim_0(
                     teacher_scores / temperature)
-
-                print(f' teacher_distrib_p_bi {teacher_distrib_p_bi}')
 
                 list_of_teacher_distributions.append(teacher_distrib_p_bi)
 
@@ -347,6 +346,8 @@ def train(output_model_path: str,
     """
     Train the model to have an image encoder that encodes into sparse embeddings matching the text encoder's outputs
 
+    :param beta:
+    :param alpha:
     :param reduction_in_loss:
     :param dataloader_num_worker: num worker to use in dataloader
     :param temperature:
@@ -397,7 +398,7 @@ def train(output_model_path: str,
             train_data_loader = get_captions_image_data_loader(root=DATASET_ROOT_PATH,
                                                                split_root=DATASET_SPLIT_ROOT_PATH,
                                                                split='val',
-                                                               shuffle=False,
+                                                               shuffle=True,
                                                                num_workers=dataloader_num_worker,
                                                                batch_size=batch_size,
                                                                collate_fn=collate,
@@ -406,7 +407,7 @@ def train(output_model_path: str,
             val_data_loader = get_captions_image_data_loader(root=DATASET_ROOT_PATH,
                                                              split_root=DATASET_SPLIT_ROOT_PATH,
                                                              split='val',
-                                                             shuffle=False,
+                                                             shuffle=True,
                                                              num_workers=dataloader_num_worker,
                                                              batch_size=batch_size,
                                                              collate_fn=collate)
@@ -418,8 +419,6 @@ def train(output_model_path: str,
             with Bar(f'Batch in epoch {epoch}', max=math.ceil(len(train_data_loader.dataset) / batch_size),
                      check_tty=False) as training_bar:
                 for batch_id, (matching_filenames, images, captions) in enumerate(train_data_loader):
-                    if batch_id > 0:
-                        break
                     image_tensors = []
                     for i in images:
                         image_tensors.append(dual_encoder_transform(i))
@@ -436,6 +435,7 @@ def train(output_model_path: str,
                     image_tensors = torch.stack(image_tensors).to(device)
                     images_embeddings = image_encoder(image_tensors).to(device)
                     texts_embeddings = text_encoder(captions).to(device)
+                    os.environ['PRINT_DOT_PRODUCTS'] = 'True'
                     loss = compute_loss(images, captions, matching_filenames, original_images, vilt_model,
                                         images_embeddings,
                                         texts_embeddings,
@@ -458,7 +458,8 @@ def train(output_model_path: str,
                         torch.save(text_encoder.state_dict(),
                                    output_model_path + '/model-inter-' + str(epoch + 1) + '-' + str(
                                        batch_id) + '-text.pt')
-                    if batch_id % 200 == 0 and batch_id != 0:
+                    if batch_id % (math.ceil(len(train_data_loader.dataset) / batch_size) / 2) == 0 and batch_id != 0:
+                        os.environ['PRINT_DOT_PRODUCTS'] = 'False'
                         val_loss = validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
                                                    negative_batch_size, temperature, alpha, beta, reduction_in_loss)
                         print(colored(
@@ -472,8 +473,9 @@ def train(output_model_path: str,
                 print(colored(
                     f'\nEpoch finished in {time.time() - epoch_start} s, saving model to {image_file_path_dump}',
                     'green'))
-                val_loss = [0] #validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
-                                #           negative_batch_size, temperature, alpha, beta, reduction_in_loss)
+                os.environ['PRINT_DOT_PRODUCTS'] = 'False'
+                val_loss = validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
+                                           negative_batch_size, temperature, alpha, beta, reduction_in_loss)
                 val_losses_epochs.append(np.mean(np.array(val_loss)))
                 train_losses_epochs.append(np.mean(np.array(train_loss)))
                 print(colored(
@@ -496,7 +498,7 @@ def train(output_model_path: str,
 
             test_evaluations = {}
             val_evaluations = {}
-            if epoch % 500 == 0 and epoch != 0:
+            if epoch % 2 == 0 and epoch != 0:
                 test_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
                                                    batch_size, root=DATASET_ROOT_PATH,
                                                    split_root=DATASET_SPLIT_ROOT_PATH,
