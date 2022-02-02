@@ -290,10 +290,6 @@ def compute_loss(images, captions, matching_filenames, original_images, vilt_mod
     device = torch.device(dev)
     sample_set = list(range(len(images)))
     all_dot_products = texts_embeddings.matmul(images_embeddings.T)
-    if os.getenv('PRINT_DOT_PRODUCTS') == 'True':
-        print(f' dot_products diagonal {torch.diagonal(all_dot_products, 0)}')
-        print(f' max indices {torch.max(all_dot_products, 1).indices}')
-
     dual_encoder_loss = getattr(torch, reduction_in_loss)(
         torch.neg(torch.diagonal(log_softmax_dim_1(all_dot_products), 0)))
 
@@ -346,6 +342,15 @@ def compute_loss(images, captions, matching_filenames, original_images, vilt_mod
         distillation_loss = cross_entropy_loss(student_scores_with_temperature, teacher_distributions_from_temperature)
     else:
         distillation_loss = 0
+
+    if os.getenv('PRINT_DOT_PRODUCTS') == 'True':
+        with torch.no_grad():
+            print(f' dot_products diagonal {torch.diagonal(all_dot_products, 0)}')
+            ordinals = []
+            sorts = torch.sort(all_dot_products, descending=True, dim=1)
+            for i, s in enumerate(sorts.indices):
+                ordinals.append(s.cpu().detach().numpy().tolist().index(i))
+            print(f' ordinals {ordinals}')
     loss = beta * distillation_loss + alpha * dual_encoder_loss
     return loss
 
