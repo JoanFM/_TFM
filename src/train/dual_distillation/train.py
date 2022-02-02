@@ -243,7 +243,7 @@ def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negativ
         text_encoder.fc1.train(False)
         text_encoder.fc2.train(False)
         val_loss = []
-        for batch_id, (matching_filenames, images, captions) in enumerate(dataloader):
+        for batch_id, (caption_indices, images_indices, matching_filenames, images, captions) in enumerate(dataloader):
 
             image_tensors = []
             for i in images:
@@ -261,14 +261,18 @@ def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negativ
 
 
 def collate(batch, *args, **kwargs):
+    caption_indices = []
+    images_indices = []
     filenames = []
     pil_images = []
     captions = []
-    for f, i, c in batch:
+    for ci, ii, f, i, c in batch:
+        caption_indices.append(ci)
+        images_indices.append(ii)
         filenames.append(f)
         pil_images.append(i)
         captions.append(c)
-    return filenames, pil_images, captions
+    return caption_indices, images_indices, filenames, pil_images, captions
 
 
 def collate_images(batch, *args, **kwargs):
@@ -447,7 +451,7 @@ def train(output_model_path: str,
 
             with Bar(f'Batch in epoch {epoch}', max=math.ceil(len(train_data_loader.dataset) / batch_size),
                      check_tty=False) as training_bar:
-                for batch_id, (matching_filenames, images, captions) in enumerate(train_data_loader):
+                for batch_id, (caption_indices, images_indices, matching_filenames, images, captions) in enumerate(train_data_loader):
                     image_tensors = []
                     for i in images:
                         image_tensors.append(dual_encoder_transform(i))

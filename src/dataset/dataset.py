@@ -98,13 +98,19 @@ class ImageCaptionFlickr30kDataset(Flickr30kDataset):
         return img
 
     def __getitem__(self, index):
+        caption_index = index
+        image_index = index // 5
         matching_filename = self.matching_filenames[index]
-        caption = self.captions[index]
+        caption = self.captions[caption_index]
         positive_img = self._get_image(matching_filename)
-        return matching_filename, positive_img, caption
+        return caption_index, image_index, matching_filename, positive_img, caption
 
     def __len__(self):
         return self.captions_length
+
+    @property
+    def num_images(self):
+        return len(self.filenames)
 
 
 class ImageConcatenatedCaptionsFlickr30kDataset(Flickr30kDataset):
