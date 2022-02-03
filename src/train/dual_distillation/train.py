@@ -243,7 +243,7 @@ def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negativ
             original_images = images
             images_embeddings = image_encoder(torch.stack(image_tensors).to(device)).to(device)
             texts_embeddings = text_encoder(captions).to(device)
-            loss = compute_loss(images, captions, matching_filenames, original_images, vilt_model, images_embeddings,
+            loss = compute_loss(images, captions, images_indices, caption_indices, matching_filenames, original_images, vilt_model, images_embeddings,
                                 texts_embeddings,
                                 negative_batch_size, temperature, alpha, beta, reduction_in_loss,
                                 cache_query_image_slow_scores, 'val')
@@ -298,7 +298,7 @@ def collate_captions(batch, *args, **kwargs):
     return filenames, pil_images
 
 
-def compute_loss(images, captions, matching_filenames, original_images, vilt_model, images_embeddings, texts_embeddings,
+def compute_loss(images, captions, images_indices, captions_indices, matching_filenames, original_images, vilt_model, images_embeddings, texts_embeddings,
                  negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_query_image_slow_scores, split):
     cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction=reduction_in_loss)
     if torch.cuda.is_available():
@@ -312,6 +312,7 @@ def compute_loss(images, captions, matching_filenames, original_images, vilt_mod
         torch.neg(torch.diagonal(log_softmax_dim_1(all_dot_products), 0)))
 
     if beta > 0:
+        transformed_images = []
         if cache_query_image_slow_scores[split] is not None:
             transformed_images = [vilt_transform(original_image).to(device) for original_image in original_images]
         list_of_student_scores_with_temperature = []
@@ -335,12 +336,8 @@ def compute_loss(images, captions, matching_filenames, original_images, vilt_mod
                                                                       [transformed_positive_image] + transformed_negative_images)
 
                 else:
-                    images_indices = [i] + negative_images_indices
-                    teacher_scores = cache_query_image_slow_scores[split].get_scores()
-                    transformed_negative_images = [transformed_images[j] for j in negative_images_indices]
-                    transformed_positive_image = transformed_images[i]
-                    teacher_scores = vilt_model.score_query_vs_images(caption,
-                                                                      [transformed_positive_image] + transformed_negative_images)
+                    absolute_images_indices_in_dataset = [images_indices[i]] + [images_indices[j] for j in negative_images_indices]
+                    teacher_scores = cache_query_image_slow_scores[split].get_scores(captions_indices[i], absolute_images_indices_in_dataset)
 
                 teacher_distrib_p_bi = softmax_dim_0(
                     teacher_scores / temperature)
@@ -477,7 +474,7 @@ def train(output_model_path: str,
                     images_embeddings = image_encoder(image_tensors).to(device)
                     texts_embeddings = text_encoder(captions).to(device)
                     os.environ['PRINT_DOT_PRODUCTS'] = 'True'
-                    loss = compute_loss(images, captions, matching_filenames, original_images, vilt_model,
+                    loss = compute_loss(images, captions, images_indices, caption_indices, matching_filenames, original_images, vilt_model,
                                         images_embeddings,
                                         texts_embeddings,
                                         negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_scores, 'val')
