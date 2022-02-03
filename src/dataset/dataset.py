@@ -50,7 +50,7 @@ class ImageFlickr30kDataset(Flickr30kDataset):
     def __getitem__(self, index):
         filename = f'{self.ids[index]}.jpg'
         img = self._get_image(index)
-        return filename, img
+        return index, filename, img
 
     def __len__(self):
         return self.images_length
@@ -70,7 +70,7 @@ class CaptionFlickr30kDataset(Flickr30kDataset):
         self.matching_filenames = self.df['image_name'].values
 
     def __getitem__(self, index):
-        return self.matching_filenames[index], self.captions[index]
+        return index, self.matching_filenames[index], self.captions[index]
 
     def __len__(self):
         return self.captions_length

@@ -140,7 +140,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
         pixel_bert_transformed_images = []
         with Bar(f'Computing the embedding of all the images', check_tty=False,
                  max=len(image_data_loader)) as image_embedding_bar:
-            for batch_id, (filenames, images) in enumerate(image_data_loader):
+            for batch_id, (_, filenames, images) in enumerate(image_data_loader):
                 image_tensors = []
                 for i in images:
                     pixel_bert_transformed_images.append(vilt_transform(i).to(device))
@@ -154,14 +154,14 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
         all_image_embeddings = torch.cat(all_image_embeddings)
 
         text_data_loader = get_captions_data_loader(root=root, split_root=split_root, split=split,
-                                                    batch_size=batch_size)
+                                                    batch_size=batch_size, collate_fn=collate_captions)
 
         dot_products = []
         groundtruth_expected_image_filenames = []
         queries = []
         with Bar(f'Computing dot products for every query', check_tty=False,
                  max=len(text_data_loader)) as dot_prod_bar:
-            for batch_id, (filenames, captions) in enumerate(text_data_loader):
+            for batch_id, (_, filenames, captions) in enumerate(text_data_loader):
                 texts_embeddings = text_encoder(captions).to(device)
                 d_product = texts_embeddings.matmul(all_image_embeddings.T)
                 dot_products.append(d_product)
@@ -180,7 +180,6 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
             with Bar(f'Second phase query for first_phase {first_phase_top_k}', check_tty=False,
                      max=len(queries)) as query_bar:
                 for i, (query, dot_prod) in enumerate(zip(queries, dot_products)):
-                    now = time.time()
                     list_scores = dot_prod.cpu().detach().numpy().tolist()
                     assert len(list_scores) == len(pixel_bert_transformed_images)
                     sorted_images_indices = [i for _, i in
@@ -189,20 +188,12 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
                     candidate_images_indices = sorted_images_indices[:first_phase_top_k]
                     non_candidate_images_indices = sorted_images_indices[first_phase_top_k:]
                     candidate_images = [pixel_bert_transformed_images[i] for i in candidate_images_indices]
-                    pre_score = time.time()
                     scores = vilt_model.rank_query_vs_images(query, candidate_images)
-                    # if i % 50 == 0:
-                    #     print(f' Computing the score for {len(candidate_images)} took {time.time() - pre_score}s')
                     best_indices = [i for _, i in sorted(zip(scores, range(len(scores))), reverse=True)]
                     resulting_filenames = [image_filenames[candidate_images_indices[i]] for i in best_indices]
-                    # if i % 50 == 0:
-                    #     print(
-                    #         f' groundtruth {groundtruth_expected_image_filenames[i]} in resulting {resulting_filenames}')
                     resulting_filenames.extend([image_filenames[i] for i in non_candidate_images_indices])
                     retrieved_image_filenames.append(resulting_filenames)
                     query_bar.next()
-                    # if i % 50 == 0:
-                    #     print(f' Computing the re-ranking for a single query took {time.time() - now}s')
 
             t2i_evaluations = evaluate(['recall', 'reciprocal_rank'], retrieved_image_filenames,
                                        groundtruth_expected_image_filenames,
@@ -254,7 +245,8 @@ def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negativ
             texts_embeddings = text_encoder(captions).to(device)
             loss = compute_loss(images, captions, matching_filenames, original_images, vilt_model, images_embeddings,
                                 texts_embeddings,
-                                negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_query_image_slow_scores)
+                                negative_batch_size, temperature, alpha, beta, reduction_in_loss,
+                                cache_query_image_slow_scores)
             val_loss.append(loss.item())
 
     return val_loss
@@ -276,6 +268,28 @@ def collate(batch, *args, **kwargs):
 
 
 def collate_images(batch, *args, **kwargs):
+    filenames = []
+    pil_images = []
+    indices = []
+    for ii, f, i in batch:
+        indices.append(ii)
+        filenames.append(f)
+        pil_images.append(i)
+    return indices, filenames, pil_images
+
+
+def collate_captions(batch, *args, **kwargs):
+    filenames = []
+    captions = []
+    indices = []
+    for ii, f, c in batch:
+        indices.append(ii)
+        filenames.append(f)
+        captions.append(c)
+    return indices, filenames, captions
+
+
+def collate_captions(batch, *args, **kwargs):
     filenames = []
     pil_images = []
     for f, i in batch:
@@ -451,7 +465,8 @@ def train(output_model_path: str,
 
             with Bar(f'Batch in epoch {epoch}', max=math.ceil(len(train_data_loader.dataset) / batch_size),
                      check_tty=False) as training_bar:
-                for batch_id, (caption_indices, images_indices, matching_filenames, images, captions) in enumerate(train_data_loader):
+                for batch_id, (caption_indices, images_indices, matching_filenames, images, captions) in enumerate(
+                        train_data_loader):
                     image_tensors = []
                     for i in images:
                         image_tensors.append(dual_encoder_transform(i))
@@ -501,6 +516,7 @@ def train(output_model_path: str,
 
                         time_start = time.time()
                     training_bar.next()
+
                 image_file_path_dump = output_model_path + '/model-inter-' + str(epoch + 1) + '-final-image.pt'
                 text_file_path_dump = output_model_path + '/model-inter-' + str(epoch + 1) + '-final-text.pt'
                 print(colored(
@@ -508,7 +524,8 @@ def train(output_model_path: str,
                     'green'))
                 os.environ['PRINT_DOT_PRODUCTS'] = 'False'
                 val_loss = validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
-                                           negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_query_image_slow_scores)
+                                           negative_batch_size, temperature, alpha, beta, reduction_in_loss,
+                                           cache_query_image_slow_scores)
                 val_losses_epochs.append(np.mean(np.array(val_loss)))
                 train_losses_epochs.append(np.mean(np.array(train_loss)))
                 print(colored(
@@ -577,7 +594,7 @@ def main(*args, **kwargs):
         word2vec_model_path=TEXT_WORD2_VEC_MODEL_PATH,
         image_encoder_backbone_model='resnet50',
         vilt_model_path=VILT_BASE_MODEL_LOAD_PATH,
-        batch_size=8,
+        batch_size=128,
         negative_batch_size=4,
         dataloader_num_worker=1,
         learning_rate=0.1,

@@ -1,11 +1,11 @@
 import os
 import torch
+import time
 
 from src.model.vilt_model import get_vilt_model
 from vilt.transforms.pixelbert import pixelbert_transform
-from src.dataset import get_captions_image_data_loader
-
-
+from src.dataset import get_image_data_loader, get_captions_data_loader
+from progress.bar import Bar
 
 vilt_transform = pixelbert_transform(384)
 
@@ -37,8 +37,30 @@ def collate(batch, *args, **kwargs):
     return caption_indices, images_indices, filenames, pil_images, captions
 
 
-def precompute_scores(output_file_path: str, vilt_model_path: str = VILT_BASE_MODEL_LOAD_PATH, split: str = 'val'):
-    print(f' hey joan')
+def collate_images(batch, *args, **kwargs):
+    filenames = []
+    pil_images = []
+    indices = []
+    for ii, f, i in batch:
+        indices.append(ii)
+        filenames.append(f)
+        pil_images.append(i)
+    return indices, filenames, pil_images
+
+
+def collate_captions(batch, *args, **kwargs):
+    filenames = []
+    captions = []
+    indices = []
+    for ii, f, c in batch:
+        indices.append(ii)
+        filenames.append(f)
+        captions.append(c)
+    return indices, filenames, captions
+
+
+def precompute_scores(output_file_path: str, vilt_model_path: str = VILT_BASE_MODEL_LOAD_PATH, split: str = 'val',
+                      batch_size=4):
     with torch.no_grad():
         if torch.cuda.is_available():
             dev = 'cuda:0'
@@ -46,28 +68,40 @@ def precompute_scores(output_file_path: str, vilt_model_path: str = VILT_BASE_MO
             dev = 'cpu'
         device = torch.device(dev)
         vilt_model = get_vilt_model(load_path=vilt_model_path)
-        print(f' hey joan HEY')
         vilt_model.to(device)
+        with torch.no_grad():
+            text_data_loader = get_captions_data_loader(root=DATASET_ROOT_PATH, split_root=DATASET_SPLIT_ROOT_PATH,
+                                                        split=split,
+                                                        batch_size=batch_size, collate_fn=collate_captions,
+                                                        shuffle=False)
 
-        data_loader = get_captions_image_data_loader(root=DATASET_ROOT_PATH,
-                                                     split_root=DATASET_SPLIT_ROOT_PATH,
-                                                     split=split,
-                                                     shuffle=False,
-                                                     num_workers=1,
-                                                     batch_size=4,
-                                                     collate_fn=collate,
-                                                     batch_sampling=True)
+            image_data_loader = get_image_data_loader(root=DATASET_ROOT_PATH, split_root=DATASET_SPLIT_ROOT_PATH,
+                                                      split=split, batch_size=batch_size, shuffle=False,
+                                                      collate_fn=collate_images, force_transform_to_none=True)
 
-        scores = torch.zeros(len(data_loader.dataset), data_loader.dataset.num_images)
-        for batch_id, (caption_indices, images_indices, matching_filenames, images, captions) in enumerate(data_loader):
-            transformed_images = [vilt_transform(image).to(device) for image in images]
-            for c_id, caption in enumerate(captions):
-                slow_scores = vilt_model.score_query_vs_images(caption, transformed_images)
-                for i, sc in enumerate(slow_scores):
-                    scores[caption_indices[c_id], images_indices[i]] = sc.cpu().item()
-            if batch_id > 5:
-                break
+            scores = torch.zeros(len(text_data_loader.dataset), len(image_data_loader.dataset))
 
+            with Bar(f'Caption progress', check_tty=False,
+                     max=len(text_data_loader)) as caption_bar:
+
+                for caption_batch_id, (caption_indices, filenames, captions) in enumerate(text_data_loader):
+
+                    for c_id, caption in zip(caption_indices, captions):
+                        start = time.time()
+                        with Bar(f'Image progress', check_tty=False,
+                                 max=len(image_data_loader)) as image_bar:
+                            for image_batch_id, (images_indices, filenames, images) in enumerate(image_data_loader):
+                                pixel_bert_transformed_images = []
+
+                                for i in images:
+                                    pixel_bert_transformed_images.append(vilt_transform(i).to(device))
+
+                                slow_scores = vilt_model.score_query_vs_images(caption, pixel_bert_transformed_images)
+                                for image_ind, sc in zip(images_indices, slow_scores):
+                                    scores[c_id, image_ind] = sc.cpu().item()
+                            image_bar.next()
+                        print(f' Scoring every image for caption {c_id} took {time.time() - start}s')
+                    caption_bar.next()
         torch.save(scores, output_file_path)
 
 
@@ -75,11 +109,11 @@ def main(*args, **kwargs):
     precompute_scores(
         output_file_path='val.th',
         vilt_model_path=VILT_BASE_MODEL_LOAD_PATH,
-        split='val')
+        split='val',
+        batch_size=4)
 
 
 if __name__ == '__main__':
-    print(f' hahaha')
     import sys
 
     main(*sys.argv)
