@@ -311,8 +311,9 @@ def compute_loss(images, captions, matching_filenames, original_images, vilt_mod
     dual_encoder_loss = getattr(torch, reduction_in_loss)(
         torch.neg(torch.diagonal(log_softmax_dim_1(all_dot_products), 0)))
 
-    transformed_images = [vilt_transform(original_image).to(device) for original_image in original_images]
     if beta > 0:
+        transformed_images = [vilt_transform(original_image).to(device) for original_image in original_images]
+
         list_of_student_scores_with_temperature = []
         list_of_teacher_distributions = []
 
