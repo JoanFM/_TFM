@@ -289,14 +289,6 @@ def collate_captions(batch, *args, **kwargs):
     return indices, filenames, captions
 
 
-def collate_captions(batch, *args, **kwargs):
-    filenames = []
-    pil_images = []
-    for f, i in batch:
-        filenames.append(f)
-        pil_images.append(i)
-    return filenames, pil_images
-
 
 def compute_loss(images, captions, images_indices, captions_indices, matching_filenames, original_images, vilt_model, images_embeddings, texts_embeddings,
                  negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_query_image_slow_scores):
@@ -308,13 +300,15 @@ def compute_loss(images, captions, images_indices, captions_indices, matching_fi
     device = torch.device(dev)
     sample_set = list(range(len(images)))
     all_dot_products = texts_embeddings.matmul(images_embeddings.T)
-    dual_encoder_loss = getattr(torch, reduction_in_loss)(
-        torch.neg(torch.diagonal(log_softmax_dim_1(all_dot_products), 0)))
+    
+    target = torch.LongTensor(list(range(len(images)))).to(device)  # 0, 1, 2, 3, 4.. 127
+    dual_encoder_loss = cross_entropy_loss(all_dot_products, target)
 
     if beta > 0:
         transformed_images = []
         if cache_query_image_slow_scores is not None:
             transformed_images = [vilt_transform(original_image).to(device) for original_image in original_images]
+        
         list_of_student_scores_with_temperature = []
         list_of_teacher_distributions = []
 
@@ -342,6 +336,9 @@ def compute_loss(images, captions, images_indices, captions_indices, matching_fi
                 teacher_distrib_p_bi = softmax_dim_0(
                     teacher_scores / temperature)
 
+                print(f' teacher_scores {teacher_scores}')
+                print(f' teacher_distrib_p_bi {teacher_distrib_p_bi}')
+
                 list_of_teacher_distributions.append(teacher_distrib_p_bi)
 
         student_scores_with_temperature = torch.stack(list_of_student_scores_with_temperature)
@@ -353,7 +350,9 @@ def compute_loss(images, captions, images_indices, captions_indices, matching_fi
 
     if os.getenv('PRINT_DOT_PRODUCTS') == 'True':
         with torch.no_grad():
-            print(f' dot_products diagonal {torch.diagonal(all_dot_products, 0)}')
+            print(f' num captions: {len(captions)}, num images: {len(images)}')
+            print(f' \ndot_products {all_dot_products[0]}')
+            print(f' \ndot_products diagonal {torch.diagonal(all_dot_products, 0)}')
             ordinals = []
             sorts = torch.sort(all_dot_products, descending=True, dim=1)
             for i, s in enumerate(sorts.indices):
@@ -367,7 +366,7 @@ def train(output_model_path: str,
           vilt_model_path: str,
           word2vec_model_path: str,
           image_encoder_backbone_model: str,
-          num_epochs: int = 100,
+          num_epochs: int = 10000,
           batch_size: int = 8,
           negative_batch_size: int = 4,
           learning_rate: float = 0.001,
@@ -455,6 +454,8 @@ def train(output_model_path: str,
 
             with Bar(f'Batch in epoch {epoch}', max=math.ceil(len(train_data_loader.dataset) / batch_size),
                      check_tty=False) as training_bar:
+                sum_images = 0
+                sum_captions = 0
                 for batch_id, (caption_indices, images_indices, matching_filenames, images, captions) in enumerate(
                         train_data_loader):
                     image_tensors = []
@@ -474,7 +475,9 @@ def train(output_model_path: str,
                     images_embeddings = image_encoder(image_tensors).to(device)
                     texts_embeddings = text_encoder(captions).to(device)
                     os.environ['PRINT_DOT_PRODUCTS'] = 'True'
-                    loss = compute_loss(images, captions, images_indices, caption_indices, matching_filenames, original_images, vilt_model,
+                    sum_images += len(images)
+                    sum_captions += len(captions)
+                    loss = compute_loss(images, captions, matching_filenames, original_images, vilt_model,
                                         images_embeddings,
                                         texts_embeddings,
                                         negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_scores['val'])
@@ -496,25 +499,30 @@ def train(output_model_path: str,
                         torch.save(text_encoder.state_dict(),
                                    output_model_path + '/model-inter-' + str(epoch + 1) + '-' + str(
                                        batch_id) + '-text.pt')
-                    if batch_id % (math.ceil(len(train_data_loader.dataset) / batch_size) / 2) == 0 and batch_id != 0:
-                        os.environ['PRINT_DOT_PRODUCTS'] = 'False'
-                        val_loss = validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
-                                                   negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_scores['val'])
-                        print(colored(
-                            f'\n[{batch_id}]\tvalidation loss:\t{np.mean(np.array(val_loss))}\ttime elapsed:\t{time.time() - time_start} s',
-                            'yellow'))
-
-                        time_start = time.time()
+                    # if batch_id % (math.ceil(len(train_data_loader.dataset) / batch_size) / 2) == 0 and batch_id != 0:
+                    #     os.environ['PRINT_DOT_PRODUCTS'] = 'False'
+                    #     val_loss = validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
+                    #                                negative_batch_size, temperature, alpha, beta, reduction_in_loss,
+                    #                                cache_query_image_slow_scores)
+                    #     print(colored(
+                    #         f'\n[{batch_id}]\tvalidation loss:\t{np.mean(np.array(val_loss))}\ttime elapsed:\t{time.time() - time_start} s',
+                    #         'yellow'))
+                    #
+                    #     time_start = time.time()
                     training_bar.next()
 
+                print(colored(
+                    f'\nNum processed captions: {sum_captions}. Num processed images: {sum_images}',
+                    'green'))
                 image_file_path_dump = output_model_path + '/model-inter-' + str(epoch + 1) + '-final-image.pt'
                 text_file_path_dump = output_model_path + '/model-inter-' + str(epoch + 1) + '-final-text.pt'
                 print(colored(
                     f'\nEpoch finished in {time.time() - epoch_start} s, saving model to {image_file_path_dump}',
                     'green'))
                 os.environ['PRINT_DOT_PRODUCTS'] = 'False'
-                val_loss = validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
-                                           negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_scores['val'])
+                val_loss = [0]  #validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
+                                #           negative_batch_size, temperature, alpha, beta, reduction_in_loss,
+                                #           cache_query_image_slow_scores, cache_scores['val'])
                 val_losses_epochs.append(np.mean(np.array(val_loss)))
                 train_losses_epochs.append(np.mean(np.array(train_loss)))
                 print(colored(
@@ -529,20 +537,20 @@ def train(output_model_path: str,
                     f'\n[{batch_id}]\tBest epoch w.r.t training loss:\t{train_losses_epochs.index(min(train_losses_epochs))}',
                     'yellow'))
 
-                torch.save(image_encoder.state_dict(), image_file_path_dump)
-                torch.save(text_encoder.state_dict(), text_file_path_dump)
+                # torch.save(image_encoder.state_dict(), image_file_path_dump)
+                # torch.save(text_encoder.state_dict(), text_file_path_dump)
 
-            with open(f'train_loss-{epoch}', 'wb') as f:
-                pickle.dump(train_loss, f)
+            # with open(f'train_loss-{epoch}', 'wb') as f:
+            #     pickle.dump(train_loss, f)
 
             test_evaluations = {}
             val_evaluations = {}
             if epoch % 10 == 0 and epoch != 0:
-                test_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
-                                                   batch_size, root=DATASET_ROOT_PATH,
-                                                   split_root=DATASET_SPLIT_ROOT_PATH,
-                                                   split='test')
-                test_evals_epochs.append(test_evaluations)
+                # test_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
+                #                                    batch_size, root=DATASET_ROOT_PATH,
+                #                                    split_root=DATASET_SPLIT_ROOT_PATH,
+                #                                    split='test')
+                # test_evals_epochs.append(test_evaluations)
 
                 val_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
                                                   batch_size, root=DATASET_ROOT_PATH,
@@ -583,7 +591,7 @@ def main(*args, **kwargs):
         word2vec_model_path=TEXT_WORD2_VEC_MODEL_PATH,
         image_encoder_backbone_model='resnet50',
         vilt_model_path=VILT_BASE_MODEL_LOAD_PATH,
-        batch_size=128,
+        batch_size=8,
         negative_batch_size=4,
         dataloader_num_worker=1,
         learning_rate=0.1,
