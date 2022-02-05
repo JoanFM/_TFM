@@ -243,7 +243,7 @@ def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negativ
             original_images = images
             images_embeddings = image_encoder(torch.stack(image_tensors).to(device)).to(device)
             texts_embeddings = text_encoder(captions).to(device)
-            loss = compute_loss(images, captions, matching_filenames, original_images, vilt_model, images_embeddings,
+            loss = compute_loss(images, captions, images_indices, caption_indices, matching_filenames, original_images, vilt_model, images_embeddings,
                                 texts_embeddings,
                                 negative_batch_size, temperature, alpha, beta, reduction_in_loss,
                                 cache_query_image_slow_scores)
@@ -289,7 +289,8 @@ def collate_captions(batch, *args, **kwargs):
     return indices, filenames, captions
 
 
-def compute_loss(images, captions, matching_filenames, original_images, vilt_model, images_embeddings, texts_embeddings,
+
+def compute_loss(images, captions, images_indices, captions_indices, matching_filenames, original_images, vilt_model, images_embeddings, texts_embeddings,
                  negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_query_image_slow_scores):
     cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction=reduction_in_loss)
     if torch.cuda.is_available():
@@ -299,13 +300,15 @@ def compute_loss(images, captions, matching_filenames, original_images, vilt_mod
     device = torch.device(dev)
     sample_set = list(range(len(images)))
     all_dot_products = texts_embeddings.matmul(images_embeddings.T)
-
+    
     target = torch.LongTensor(list(range(len(images)))).to(device)  # 0, 1, 2, 3, 4.. 127
     dual_encoder_loss = cross_entropy_loss(all_dot_products, target)
 
     if beta > 0:
-        transformed_images = [vilt_transform(original_image).to(device) for original_image in original_images]
-
+        transformed_images = []
+        if cache_query_image_slow_scores is not None:
+            transformed_images = [vilt_transform(original_image).to(device) for original_image in original_images]
+        
         list_of_student_scores_with_temperature = []
         list_of_teacher_distributions = []
 
@@ -314,33 +317,21 @@ def compute_loss(images, captions, matching_filenames, original_images, vilt_mod
             csample_set = copy.copy(sample_set)
             csample_set.remove(i)
             negative_images_indices = random.sample(csample_set, min(negative_batch_size, len(images)) - 1)
-            transformed_negative_images = [transformed_images[j] for j in negative_images_indices]
-            transformed_positive_image = transformed_images[i]
+
             student_scores = all_dot_products[i, [i] + negative_images_indices]
-            import operator
-            filenames = list(operator.itemgetter(*[i] + negative_images_indices)(matching_filenames))
 
             list_of_student_scores_with_temperature.append(student_scores / temperature)
 
             with torch.no_grad():
-                images_for_slow_model = [transformed_positive_image] + transformed_negative_images
-                teacher_scores = torch.zeros(len(filenames))
-                not_cached_indices = []
-                for filename_i, filename in enumerate(filenames):
-                    if f'{caption}-{filename}' in cache_query_image_slow_scores:
-                        teacher_scores[filename_i] = cache_query_image_slow_scores[f'{caption}-{filename}']
-                    else:
-                        not_cached_indices.append(filename_i)
+                if cache_query_image_slow_scores is not None:
+                    transformed_negative_images = [transformed_images[j] for j in negative_images_indices]
+                    transformed_positive_image = transformed_images[i]
+                    teacher_scores = vilt_model.score_query_vs_images(caption,
+                                                                      [transformed_positive_image] + transformed_negative_images)
 
-                if len(not_cached_indices) > 0:
-                    if len(not_cached_indices) == 1:
-                        images_to_query = [images_for_slow_model[not_cached_indices[0]]]
-                    else:
-                        images_to_query = list(operator.itemgetter(*not_cached_indices)(images_for_slow_model))
-                    slow_scores = vilt_model.score_query_vs_images(caption, images_to_query)
-                    for ind, score in zip(not_cached_indices, slow_scores):
-                        cache_query_image_slow_scores[f'{caption}-{filenames[ind]}'] = score
-                        teacher_scores[ind] = score
+                else:
+                    absolute_images_indices_in_dataset = [images_indices[i]] + [images_indices[j] for j in negative_images_indices]
+                    teacher_scores = cache_query_image_slow_scores.get_scores(captions_indices[i], absolute_images_indices_in_dataset)
 
                 teacher_distrib_p_bi = softmax_dim_0(
                     teacher_scores / temperature)
@@ -383,11 +374,13 @@ def train(output_model_path: str,
           dataloader_num_worker=1,
           alpha=0.1,
           beta=1,
-          reduction_in_loss='mean'
+          reduction_in_loss='mean',
+          cache_scores={'train': None, 'val': None, 'test': None}
           ):
     """
     Train the model to have an image encoder that encodes into sparse embeddings matching the text encoder's outputs
 
+    :param cache_scores:
     :param beta:
     :param alpha:
     :param reduction_in_loss:
@@ -428,8 +421,6 @@ def train(output_model_path: str,
     test_evals_epochs = []
     val_evals_epochs = []
     train_evals_epochs = []
-
-    cache_query_image_slow_scores = {}
 
     # run_evaluations(image_encoder, text_encoder, vilt_model,
     #                 batch_size, root=DATASET_ROOT_PATH,
@@ -489,8 +480,7 @@ def train(output_model_path: str,
                     loss = compute_loss(images, captions, matching_filenames, original_images, vilt_model,
                                         images_embeddings,
                                         texts_embeddings,
-                                        negative_batch_size, temperature, alpha, beta, reduction_in_loss,
-                                        cache_query_image_slow_scores)
+                                        negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_scores['val'])
 
                     loss.backward()
                     train_loss.append(loss.item())
@@ -532,7 +522,7 @@ def train(output_model_path: str,
                 os.environ['PRINT_DOT_PRODUCTS'] = 'False'
                 val_loss = [0]  #validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
                                 #           negative_batch_size, temperature, alpha, beta, reduction_in_loss,
-                                #           cache_query_image_slow_scores)
+                                #           cache_query_image_slow_scores, cache_scores['val'])
                 val_losses_epochs.append(np.mean(np.array(val_loss)))
                 train_losses_epochs.append(np.mean(np.array(train_loss)))
                 print(colored(
@@ -608,7 +598,9 @@ def main(*args, **kwargs):
         alpha=1,
         temperature=10,
         beta=1,
-        reduction_in_loss='mean')
+        reduction_in_loss='mean',
+        cache_scores={'train': None, 'val': None, 'test': None}
+    )
 
 
 if __name__ == '__main__':
