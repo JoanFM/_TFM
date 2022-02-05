@@ -59,8 +59,20 @@ def collate_captions(batch, *args, **kwargs):
     return indices, filenames, captions
 
 
+def _get_num_captions_in_partition(partition_to_compute, number_partitions, total_number_of_captions):
+    processed_captions = 0
+    for i in range(partition_to_compute):
+        processed_captions += total_number_of_captions // number_partitions
+
+    left_captions = total_number_of_captions - processed_captions
+    if partition_to_compute + 1 == number_partitions:
+        return left_captions
+    else:
+        return total_number_of_captions // number_partitions
+
+
 def precompute_scores(output_file_path: str, vilt_model_path: str = VILT_BASE_MODEL_LOAD_PATH, split: str = 'val',
-                      batch_size=4, number_partitions=1):
+                      batch_size=4, number_partitions=1, partition_to_compute=0):
     with torch.no_grad():
         if torch.cuda.is_available():
             dev = 'cuda:0'
@@ -84,55 +96,54 @@ def precompute_scores(output_file_path: str, vilt_model_path: str = VILT_BASE_MO
 
             partition = 0
 
+            scores = torch.zeros(
+                _get_num_captions_in_partition(partition_to_compute, number_partitions, total_num_captions),
+                total_num_images)
             with Bar(f'Caption progress', check_tty=False,
                      max=len(text_data_loader)) as caption_bar:
-                scores = torch.zeros(total_num_captions // number_partitions, total_num_images)
                 processed_captions = 0
                 offset_caption_in_partition = 0
-                slow_scores = torch.rand(total_num_images)
                 for caption_batch_id, (caption_indices, filenames, captions) in enumerate(text_data_loader):
+                    if partition > partition_to_compute:
+                        break
                     for c_id, caption in zip(caption_indices, captions):
                         start = time.time()
-                        for image_ind, sc in zip(range(total_num_images), slow_scores):
-                            scores[offset_caption_in_partition, image_ind] = sc.cpu().item()
-                        with Bar(f'Image progress', check_tty=False,
-                                 max=len(image_data_loader)) as image_bar:
-                            for image_batch_id, (images_indices, filenames, images) in enumerate(image_data_loader):
-                                pixel_bert_transformed_images = []
+                        if partition == partition_to_compute:
+                            #scores[offset_caption_in_partition] = torch.ones(total_num_images) * c_id
+                            with Bar(f'Image progress', check_tty=False,
+                                     max=len(image_data_loader)) as image_bar:
+                                for image_batch_id, (images_indices, filenames, images) in enumerate(image_data_loader):
+                                    pixel_bert_transformed_images = []
 
-                                for i in images:
-                                    pixel_bert_transformed_images.append(vilt_transform(i).to(device))
+                                    for i in images:
+                                        pixel_bert_transformed_images.append(vilt_transform(i).to(device))
 
-                                slow_scores = vilt_model.score_query_vs_images(caption, pixel_bert_transformed_images)
-                                for image_ind, sc in zip(images_indices, slow_scores):
-                                    scores[c_id, image_ind] = sc.cpu().item()
-                            image_bar.next()
+                                    slow_scores = vilt_model.score_query_vs_images(caption, pixel_bert_transformed_images)
+                                    for image_ind, sc in zip(images_indices, slow_scores):
+                                        scores[c_id, image_ind] = sc.cpu().item()
+                                image_bar.next()
                         offset_caption_in_partition += 1
                         processed_captions += 1
                         print(f' Scoring every image for caption {c_id} took {time.time() - start}s')
-                        if number_partitions > 1 and (partition + 1 < number_partitions) and (processed_captions // (total_num_captions // number_partitions) > partition):
+                        if number_partitions > 1 and (partition + 1 < number_partitions) and (
+                                processed_captions // (total_num_captions // number_partitions) > partition):
                             offset_caption_in_partition = 0
-                            torch.save(scores, f'{output_file_path.split(".th")[0]}-{partition}.th')
                             partition += 1
-                            left_captions = total_num_captions - processed_captions
-                            if partition + 1 == number_partitions:
-                                scores = torch.zeros(left_captions, total_num_images)
-                            else:
-                                scores = torch.zeros(total_num_captions // number_partitions, total_num_images)
+                        if partition > partition_to_compute:
+                            break
                     caption_bar.next()
-        if number_partitions > 1:
-            torch.save(scores, f'{output_file_path.split(".th")[0]}-{partition}.th')
-        else:
-            torch.save(scores, output_file_path)
+        torch.save(scores, f'{output_file_path.split(".th")[0]}-{partition_to_compute}.th')
 
 
 def main(*args, **kwargs):
-    precompute_scores(
-        output_file_path='val.th',
-        vilt_model_path=VILT_BASE_MODEL_LOAD_PATH,
-        split='val',
-        batch_size=4,
-        number_partitions=1)
+    for i in range(12):
+        precompute_scores(
+            output_file_path='train.th',
+            vilt_model_path=VILT_BASE_MODEL_LOAD_PATH,
+            split='train',
+            batch_size=4,
+            number_partitions=12,
+            partition_to_compute=i)
 
 
 if __name__ == '__main__':

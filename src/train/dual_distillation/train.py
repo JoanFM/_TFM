@@ -246,7 +246,7 @@ def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negativ
             loss = compute_loss(images, captions, images_indices, caption_indices, matching_filenames, original_images, vilt_model, images_embeddings,
                                 texts_embeddings,
                                 negative_batch_size, temperature, alpha, beta, reduction_in_loss,
-                                cache_query_image_slow_scores, 'val')
+                                cache_query_image_slow_scores)
             val_loss.append(loss.item())
 
     return val_loss
@@ -299,7 +299,7 @@ def collate_captions(batch, *args, **kwargs):
 
 
 def compute_loss(images, captions, images_indices, captions_indices, matching_filenames, original_images, vilt_model, images_embeddings, texts_embeddings,
-                 negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_query_image_slow_scores, split):
+                 negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_query_image_slow_scores):
     cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction=reduction_in_loss)
     if torch.cuda.is_available():
         dev = 'cuda:0'
@@ -313,7 +313,7 @@ def compute_loss(images, captions, images_indices, captions_indices, matching_fi
 
     if beta > 0:
         transformed_images = []
-        if cache_query_image_slow_scores[split] is not None:
+        if cache_query_image_slow_scores is not None:
             transformed_images = [vilt_transform(original_image).to(device) for original_image in original_images]
         list_of_student_scores_with_temperature = []
         list_of_teacher_distributions = []
@@ -329,7 +329,7 @@ def compute_loss(images, captions, images_indices, captions_indices, matching_fi
             list_of_student_scores_with_temperature.append(student_scores / temperature)
 
             with torch.no_grad():
-                if cache_query_image_slow_scores[split] is not None:
+                if cache_query_image_slow_scores is not None:
                     transformed_negative_images = [transformed_images[j] for j in negative_images_indices]
                     transformed_positive_image = transformed_images[i]
                     teacher_scores = vilt_model.score_query_vs_images(caption,
@@ -337,7 +337,7 @@ def compute_loss(images, captions, images_indices, captions_indices, matching_fi
 
                 else:
                     absolute_images_indices_in_dataset = [images_indices[i]] + [images_indices[j] for j in negative_images_indices]
-                    teacher_scores = cache_query_image_slow_scores[split].get_scores(captions_indices[i], absolute_images_indices_in_dataset)
+                    teacher_scores = cache_query_image_slow_scores.get_scores(captions_indices[i], absolute_images_indices_in_dataset)
 
                 teacher_distrib_p_bi = softmax_dim_0(
                     teacher_scores / temperature)
@@ -477,7 +477,7 @@ def train(output_model_path: str,
                     loss = compute_loss(images, captions, images_indices, caption_indices, matching_filenames, original_images, vilt_model,
                                         images_embeddings,
                                         texts_embeddings,
-                                        negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_scores, 'val')
+                                        negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_scores['val'])
 
                     loss.backward()
                     train_loss.append(loss.item())
@@ -499,7 +499,7 @@ def train(output_model_path: str,
                     if batch_id % (math.ceil(len(train_data_loader.dataset) / batch_size) / 2) == 0 and batch_id != 0:
                         os.environ['PRINT_DOT_PRODUCTS'] = 'False'
                         val_loss = validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
-                                                   negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_scores)
+                                                   negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_scores['val'])
                         print(colored(
                             f'\n[{batch_id}]\tvalidation loss:\t{np.mean(np.array(val_loss))}\ttime elapsed:\t{time.time() - time_start} s',
                             'yellow'))
@@ -514,7 +514,7 @@ def train(output_model_path: str,
                     'green'))
                 os.environ['PRINT_DOT_PRODUCTS'] = 'False'
                 val_loss = validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
-                                           negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_scores)
+                                           negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_scores['val'])
                 val_losses_epochs.append(np.mean(np.array(val_loss)))
                 train_losses_epochs.append(np.mean(np.array(train_loss)))
                 print(colored(
