@@ -243,7 +243,8 @@ def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negativ
             original_images = images
             images_embeddings = image_encoder(torch.stack(image_tensors).to(device)).to(device)
             texts_embeddings = text_encoder(captions).to(device)
-            loss = compute_loss(images, captions, images_indices, caption_indices, matching_filenames, original_images, vilt_model, images_embeddings,
+            loss = compute_loss(images, captions, images_indices, caption_indices, matching_filenames, original_images,
+                                vilt_model, images_embeddings,
                                 texts_embeddings,
                                 negative_batch_size, temperature, alpha, beta, reduction_in_loss,
                                 cache_query_image_slow_scores)
@@ -289,8 +290,8 @@ def collate_captions(batch, *args, **kwargs):
     return indices, filenames, captions
 
 
-
-def compute_loss(images, captions, images_indices, captions_indices, matching_filenames, original_images, vilt_model, images_embeddings, texts_embeddings,
+def compute_loss(images, captions, images_indices, captions_indices, matching_filenames, original_images, vilt_model,
+                 images_embeddings, texts_embeddings,
                  negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_query_image_slow_scores):
     cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction=reduction_in_loss)
     if torch.cuda.is_available():
@@ -300,7 +301,7 @@ def compute_loss(images, captions, images_indices, captions_indices, matching_fi
     device = torch.device(dev)
     sample_set = list(range(len(images)))
     all_dot_products = texts_embeddings.matmul(images_embeddings.T)
-    
+
     target = torch.LongTensor(list(range(len(images)))).to(device)  # 0, 1, 2, 3, 4.. 127
     dual_encoder_loss = cross_entropy_loss(all_dot_products, target)
 
@@ -308,7 +309,7 @@ def compute_loss(images, captions, images_indices, captions_indices, matching_fi
         transformed_images = []
         if cache_query_image_slow_scores is not None:
             transformed_images = [vilt_transform(original_image).to(device) for original_image in original_images]
-        
+
         list_of_student_scores_with_temperature = []
         list_of_teacher_distributions = []
 
@@ -327,17 +328,17 @@ def compute_loss(images, captions, images_indices, captions_indices, matching_fi
                     transformed_negative_images = [transformed_images[j] for j in negative_images_indices]
                     transformed_positive_image = transformed_images[i]
                     teacher_scores = vilt_model.score_query_vs_images(caption,
-                                                                      [transformed_positive_image] + transformed_negative_images)
+                                                                      [
+                                                                          transformed_positive_image] + transformed_negative_images)
 
                 else:
-                    absolute_images_indices_in_dataset = [images_indices[i]] + [images_indices[j] for j in negative_images_indices]
-                    teacher_scores = cache_query_image_slow_scores.get_scores(captions_indices[i], absolute_images_indices_in_dataset)
+                    absolute_images_indices_in_dataset = [images_indices[i]] + [images_indices[j] for j in
+                                                                                negative_images_indices]
+                    teacher_scores = cache_query_image_slow_scores.get_scores(captions_indices[i],
+                                                                              absolute_images_indices_in_dataset)
 
                 teacher_distrib_p_bi = softmax_dim_0(
                     teacher_scores / temperature)
-
-                print(f' teacher_scores {teacher_scores}')
-                print(f' teacher_distrib_p_bi {teacher_distrib_p_bi}')
 
                 list_of_teacher_distributions.append(teacher_distrib_p_bi)
 
@@ -477,10 +478,11 @@ def train(output_model_path: str,
                     os.environ['PRINT_DOT_PRODUCTS'] = 'True'
                     sum_images += len(images)
                     sum_captions += len(captions)
-                    loss = compute_loss(images, captions, matching_filenames, original_images, vilt_model,
+                    loss = compute_loss(images, captions, images_indices, caption_indices, matching_filenames, original_images, vilt_model,
                                         images_embeddings,
                                         texts_embeddings,
-                                        negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_scores['val'])
+                                        negative_batch_size, temperature, alpha, beta, reduction_in_loss,
+                                        cache_scores['val'])
 
                     loss.backward()
                     train_loss.append(loss.item())
@@ -520,9 +522,9 @@ def train(output_model_path: str,
                     f'\nEpoch finished in {time.time() - epoch_start} s, saving model to {image_file_path_dump}',
                     'green'))
                 os.environ['PRINT_DOT_PRODUCTS'] = 'False'
-                val_loss = [0]  #validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
-                                #           negative_batch_size, temperature, alpha, beta, reduction_in_loss,
-                                #           cache_query_image_slow_scores, cache_scores['val'])
+                val_loss = [0]  # validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
+                #           negative_batch_size, temperature, alpha, beta, reduction_in_loss,
+                #           cache_query_image_slow_scores, cache_scores['val'])
                 val_losses_epochs.append(np.mean(np.array(val_loss)))
                 train_losses_epochs.append(np.mean(np.array(train_loss)))
                 print(colored(
@@ -586,6 +588,11 @@ def train(output_model_path: str,
 
 
 def main(*args, **kwargs):
+    from src.model.cached_scores import CachedScores
+    import os
+    os.path.dirname(os.path.abspath(__file__))
+
+    val_cache_scores = CachedScores(os.path.join(cur_dir, '../../model/slow_scores/val.th'))
     train(
         output_model_path=IMAGE_EMBEDDING_BASE_PATH,
         word2vec_model_path=TEXT_WORD2_VEC_MODEL_PATH,
@@ -599,7 +606,7 @@ def main(*args, **kwargs):
         temperature=10,
         beta=1,
         reduction_in_loss='mean',
-        cache_scores={'train': None, 'val': None, 'test': None}
+        cache_scores={'train': None, 'val': val_cache_scores, 'test': None}
     )
 
 
