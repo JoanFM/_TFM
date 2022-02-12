@@ -100,7 +100,7 @@ def colored(
 
 
 def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, split_root, split,
-                    top_k_first_phase=None, top_ks=None):
+                    top_k_first_phase=None, top_ks=None, cache_query_image_slow_scores=None):
     """
     Runs evaluations of an ImageEncoder resulting from some training
 
@@ -118,7 +118,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
     if top_ks is None:
         top_ks = [5, 10, 50, 100, 500]
     if top_k_first_phase is None:
-        top_k_first_phase = [10]
+        top_k_first_phase = [5, 10, 50]
     if torch.cuda.is_available():
         dev = 'cuda:0'
     else:
@@ -133,14 +133,15 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
     text_encoder.fc2.train(False)
     with torch.no_grad():
         image_data_loader = get_image_data_loader(root=root, split_root=split_root, split=split, batch_size=batch_size,
-                                                  collate_fn=collate_images, force_transform_to_none=True)
+                                                  collate_fn=collate_images, shuffle=False, force_transform_to_none=True)
 
         all_image_embeddings = []
         image_filenames = []
         pixel_bert_transformed_images = []
+        all_images_ids = []
         with Bar(f'Computing the embedding of all the images', check_tty=False,
                  max=len(image_data_loader)) as image_embedding_bar:
-            for batch_id, (_, filenames, images) in enumerate(image_data_loader):
+            for batch_id, (image_ids, filenames, images) in enumerate(image_data_loader):
                 image_tensors = []
                 for i in images:
                     pixel_bert_transformed_images.append(vilt_transform(i).to(device))
@@ -149,25 +150,28 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
                 images_embeddings = image_encoder(torch.stack(image_tensors).to(device)).to(device)
                 all_image_embeddings.append(images_embeddings)
                 image_filenames.extend(filenames)
+                all_images_ids.extend(image_ids)
                 image_embedding_bar.next()
 
         all_image_embeddings = torch.cat(all_image_embeddings)
 
         text_data_loader = get_captions_data_loader(root=root, split_root=split_root, split=split,
-                                                    batch_size=batch_size, collate_fn=collate_captions)
+                                                    batch_size=batch_size, shuffle=False, collate_fn=collate_captions)
 
         dot_products = []
         groundtruth_expected_image_filenames = []
+        queries_ids = []
         queries = []
         with Bar(f'Computing dot products for every query', check_tty=False,
                  max=len(text_data_loader)) as dot_prod_bar:
-            for batch_id, (_, filenames, captions) in enumerate(text_data_loader):
+            for batch_id, (caption_ids, filenames, captions) in enumerate(text_data_loader):
                 texts_embeddings = text_encoder(captions).to(device)
                 d_product = texts_embeddings.matmul(all_image_embeddings.T)
                 dot_products.append(d_product)
                 for filename in filenames:
                     groundtruth_expected_image_filenames.append([filename])
                 queries.extend(captions)
+                queries_ids.extend(caption_ids)
                 dot_prod_bar.next()
         dot_products = torch.cat(dot_products)
         assert dot_products.shape[0] == len(groundtruth_expected_image_filenames)  # 1 matching filename for caption
@@ -179,7 +183,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
             retrieved_image_filenames = []
             with Bar(f'Second phase query for first_phase {first_phase_top_k}', check_tty=False,
                      max=len(queries)) as query_bar:
-                for i, (query, dot_prod) in enumerate(zip(queries, dot_products)):
+                for i, (query, query_id, dot_prod) in enumerate(zip(queries, queries_ids, dot_products)):
                     list_scores = dot_prod.cpu().detach().numpy().tolist()
                     assert len(list_scores) == len(pixel_bert_transformed_images)
                     sorted_images_indices = [i for _, i in
@@ -188,7 +192,10 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
                     candidate_images_indices = sorted_images_indices[:first_phase_top_k]
                     non_candidate_images_indices = sorted_images_indices[first_phase_top_k:]
                     candidate_images = [pixel_bert_transformed_images[i] for i in candidate_images_indices]
-                    scores = vilt_model.rank_query_vs_images(query, candidate_images)
+                    if cache_query_image_slow_scores is None:
+                        scores = vilt_model.rank_query_vs_images(query, candidate_images)
+                    else:
+                        scores = cache_query_image_slow_scores.get_scores(query_id, candidate_images_indices)
                     best_indices = [i for _, i in sorted(zip(scores, range(len(scores))), reverse=True)]
                     resulting_filenames = [image_filenames[candidate_images_indices[i]] for i in best_indices]
                     resulting_filenames.extend([image_filenames[i] for i in non_candidate_images_indices])
@@ -423,10 +430,11 @@ def train(output_model_path: str,
     val_evals_epochs = []
     train_evals_epochs = []
 
-    # run_evaluations(image_encoder, text_encoder, vilt_model,
-    #                 batch_size, root=DATASET_ROOT_PATH,
-    #                 split_root=DATASET_SPLIT_ROOT_PATH,
-    #                 split='test')
+    run_evaluations(image_encoder, text_encoder, vilt_model,
+                    batch_size, root=DATASET_ROOT_PATH,
+                    split_root=DATASET_SPLIT_ROOT_PATH,
+                    split='test',
+                    cache_query_image_slow_scores=cache_scores['test'])
 
     with Bar('Epochs', max=num_epochs, check_tty=False) as epoch_bar:
 
@@ -551,13 +559,15 @@ def train(output_model_path: str,
                 # test_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
                 #                                    batch_size, root=DATASET_ROOT_PATH,
                 #                                    split_root=DATASET_SPLIT_ROOT_PATH,
-                #                                    split='test')
+                #                                    split='test',
+                #                                    cache_query_image_slow_scores=cache_scores['test'])
                 # test_evals_epochs.append(test_evaluations)
 
                 val_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
                                                   batch_size, root=DATASET_ROOT_PATH,
                                                   split_root=DATASET_SPLIT_ROOT_PATH,
-                                                  split='val')
+                                                  split='val',
+                                                  cache_query_image_slow_scores=cache_scores['val'])
                 val_evals_epochs.append(val_evaluations)
 
                 # train_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
@@ -593,6 +603,7 @@ def main(*args, **kwargs):
     os.path.dirname(os.path.abspath(__file__))
 
     val_cache_scores = CachedScores(os.path.join(cur_dir, '../../model/slow_scores/val.th'))
+    test_cache_scores = CachedScores(os.path.join(cur_dir, '../../model/slow_scores/test.th'))
     train(
         output_model_path=IMAGE_EMBEDDING_BASE_PATH,
         word2vec_model_path=TEXT_WORD2_VEC_MODEL_PATH,
@@ -606,7 +617,7 @@ def main(*args, **kwargs):
         temperature=10,
         beta=1,
         reduction_in_loss='mean',
-        cache_scores={'train': None, 'val': val_cache_scores, 'test': None}
+        cache_scores={'train': None, 'val': val_cache_scores, 'test': test_cache_scores}
     )
 
 

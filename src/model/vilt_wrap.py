@@ -94,5 +94,47 @@ def compute_recall():
              {}, print_results=True)
 
 
+def compute_recall_with_cache():
+    import os
+    from src.model.cached_scores import CachedScores
+    from vilt.transforms.pixelbert import pixelbert_transform
+    from src.dataset.dataset import get_image_data_loader, get_captions_data_loader
+    from src.evaluate import evaluate
+
+    image_dataset = get_image_data_loader(root=DATASET_ROOT_PATH,
+                                          split_root=DATASET_SPLIT_ROOT_PATH,
+                                          split='test',
+                                          transform=pixelbert_transform(384),
+                                          batch_size=1)
+
+    text_dataset = get_captions_data_loader(root=DATASET_ROOT_PATH,
+                                            split_root=DATASET_SPLIT_ROOT_PATH,
+                                            split='test',
+                                            batch_size=1)
+
+    images = []
+    filenames = []
+    images_indices = []
+    for indices, filenames_batch, images_batch in image_dataset:
+        filenames.extend(filenames_batch)
+        images.extend(images_batch)
+        images_indices.extend(indices)
+
+    retrieved_image_filenames = []
+    groundtruth_expected_image_filenames = []
+    cur_dir = os.path.dirname(os.path.abspath(__file__))
+    test_cache_scores = CachedScores(os.path.join(cur_dir, 'slow_scores/test.th'))
+    for caption_indices, matching_filename, query in text_dataset:
+        filename = matching_filename[0]
+        groundtruth_expected_image_filenames.append([filename])
+        scores = test_cache_scores.get_scores(caption_indices[0], images_indices)
+        retrieved_image_filenames.append([f for _, f in sorted(zip(scores, filenames), reverse=True)])
+
+    evaluate(['recall', 'reciprocal_rank'], retrieved_image_filenames,
+             groundtruth_expected_image_filenames,
+             [1, 5, 10, 20, 100, 200, 500, None],
+             {}, print_results=True)
+
+
 if __name__ == '__main__':
-    compute_recall()
+    compute_recall_with_cache()
