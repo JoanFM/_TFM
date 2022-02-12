@@ -58,10 +58,27 @@ cd ..
 wget https://github.com/dandelin/ViLT/releases/download/200k/vilt_irtr_f30k.ckpt
 ```
 
+### Do some needed tweaks
+
+```bash
+pip uninstall -y torchtext
+pip uninstall -y keras
+pip install tensorflow==1.15.0
+pip install keras==2.2.5
+pip install keras --upgrade
+```
+
 ### Download spacy model
 
 ```bash
 python -m spacy download en_core_web_sm
+```
+
+### Make sure torch 1.10.0 is still installed and gensim 4.1.2
+
+```bash
+pip show torch
+pip show gensim
 ```
 
 ### Run the code to precompute scores

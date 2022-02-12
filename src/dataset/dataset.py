@@ -128,7 +128,7 @@ class ImageConcatenatedCaptionsFlickr30kDataset(Flickr30kDataset):
         return filename, positive_img, captions_concat
 
     def __len__(self):
-        return self.images_length
+        return 128 # self.images_length
 
 
 from torch.utils.data.sampler import BatchSampler, RandomSampler, SequentialSampler
@@ -169,7 +169,8 @@ class SampleBatchNoCommonImmages(BatchSampler):
                         del idx_by_matching_filename[key]
 
                 end = (len(idx_by_matching_filename.keys()) == 0)
-                yield batch_to_return
+                if len(batch_to_return) > 0:
+                    yield batch_to_return
 
 
 def get_concatenated_captions_image_data_loader(root, split_root, split, batch_size=8, shuffle=False,

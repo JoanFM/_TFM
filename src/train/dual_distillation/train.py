@@ -465,8 +465,7 @@ def train(output_model_path: str,
                      check_tty=False) as training_bar:
                 sum_images = 0
                 sum_captions = 0
-                for batch_id, (caption_indices, images_indices, matching_filenames, images, captions) in enumerate(
-                        train_data_loader):
+                for batch_id, (caption_indices, images_indices, matching_filenames, images, captions) in enumerate(train_data_loader):
                     image_tensors = []
                     for i in images:
                         image_tensors.append(dual_encoder_transform(i))
@@ -547,15 +546,16 @@ def train(output_model_path: str,
                     f'\n[{batch_id}]\tBest epoch w.r.t training loss:\t{train_losses_epochs.index(min(train_losses_epochs))}',
                     'yellow'))
 
-                # torch.save(image_encoder.state_dict(), image_file_path_dump)
-                # torch.save(text_encoder.state_dict(), text_file_path_dump)
+                if epoch % 50 == 0 and epoch != 0:
+                    torch.save(image_encoder.state_dict(), image_file_path_dump)
+                    torch.save(text_encoder.state_dict(), text_file_path_dump)
 
             # with open(f'train_loss-{epoch}', 'wb') as f:
             #     pickle.dump(train_loss, f)
 
             test_evaluations = {}
             val_evaluations = {}
-            if epoch % 10 == 0 and epoch != 0:
+            if epoch % 50 == 0 and epoch != 0:
                 # test_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
                 #                                    batch_size, root=DATASET_ROOT_PATH,
                 #                                    split_root=DATASET_SPLIT_ROOT_PATH,
