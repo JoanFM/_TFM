@@ -118,7 +118,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
     if top_ks is None:
         top_ks = [5, 10, 50, 100, 500]
     if top_k_first_phase is None:
-        top_k_first_phase = [10]
+        top_k_first_phase = [5, 10, 50]
     if torch.cuda.is_available():
         dev = 'cuda:0'
     else:
@@ -133,7 +133,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
     text_encoder.fc2.train(False)
     with torch.no_grad():
         image_data_loader = get_image_data_loader(root=root, split_root=split_root, split=split, batch_size=batch_size,
-                                                  collate_fn=collate_images, force_transform_to_none=True)
+                                                  collate_fn=collate_images, shuffle=False, force_transform_to_none=True)
 
         all_image_embeddings = []
         image_filenames = []
@@ -156,7 +156,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
         all_image_embeddings = torch.cat(all_image_embeddings)
 
         text_data_loader = get_captions_data_loader(root=root, split_root=split_root, split=split,
-                                                    batch_size=batch_size, collate_fn=collate_captions)
+                                                    batch_size=batch_size, shuffle=False, collate_fn=collate_captions)
 
         dot_products = []
         groundtruth_expected_image_filenames = []
