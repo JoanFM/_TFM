@@ -172,6 +172,10 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
                     groundtruth_expected_image_filenames.append([filename])
                 queries.extend(captions)
                 queries_ids.extend(caption_ids)
+                # for q, f, d in zip(captions, filenames, d_product):
+                #     list_scores = d.cpu().detach().numpy().tolist()
+                #     print(f' Expected: "{q}": {f} with {sorted(list_scores, reverse=True)}')
+
                 dot_prod_bar.next()
         dot_products = torch.cat(dot_products)
         assert dot_products.shape[0] == len(groundtruth_expected_image_filenames)  # 1 matching filename for caption
@@ -200,6 +204,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
                     resulting_filenames = [image_filenames[candidate_images_indices[i]] for i in best_indices]
                     resulting_filenames.extend([image_filenames[i] for i in non_candidate_images_indices])
                     retrieved_image_filenames.append(resulting_filenames)
+                    # print(f' Result: "{query}": {resulting_filenames}')
                     query_bar.next()
 
             t2i_evaluations = evaluate(['recall', 'reciprocal_rank'], retrieved_image_filenames,
@@ -597,7 +602,7 @@ def train(output_model_path: str,
         epoch_bar.next()
 
 
-def main(*args, **kwargs):
+def main_train(*args, **kwargs):
     from src.model.cached_scores import CachedScores
     import os
     os.path.dirname(os.path.abspath(__file__))
@@ -621,7 +626,31 @@ def main(*args, **kwargs):
     )
 
 
+def main_evaluate(*args, **kwargs):
+    from src.model.cached_scores import CachedScores
+    import os
+    os.path.dirname(os.path.abspath(__file__))
+
+    val_cache_scores = CachedScores(os.path.join(cur_dir, '../../model/slow_scores/val.th'))
+    image_encoder = ImageEncoder(backbone_model='resnet50')
+    image_encoder.load_state_dict(torch.load(os.path.join(cur_dir, '../../model/checkpoints/model-inter-401-final-image.pt'), map_location=torch.device('cpu')))
+    image_encoder.eval()
+    text_encoder = TextEncoder(model_path=TEXT_WORD2_VEC_MODEL_PATH)
+    text_encoder.load_state_dict(torch.load(os.path.join(cur_dir, '../../model/checkpoints/model-inter-401-final-text.pt'), map_location=torch.device('cpu')))
+    text_encoder.eval()
+
+    vilt_model = get_vilt_model(load_path=VILT_BASE_MODEL_LOAD_PATH)
+    val_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
+                                      8, root=DATASET_ROOT_PATH,
+                                      split_root=DATASET_SPLIT_ROOT_PATH,
+                                      split='val',
+                                      top_ks=[1],
+                                      top_k_first_phase=[1],
+                                      cache_query_image_slow_scores=val_cache_scores)
+    print(f' val_evaluations')
+
+
 if __name__ == '__main__':
     import sys
 
-    main(*sys.argv)
+    main_evaluate(*sys.argv)
