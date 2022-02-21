@@ -84,7 +84,7 @@ def precompute_scores(output_file_path: str, vilt_model_path: str = VILT_BASE_MO
         with torch.no_grad():
             text_data_loader = get_captions_data_loader(root=DATASET_ROOT_PATH, split_root=DATASET_SPLIT_ROOT_PATH,
                                                         split=split,
-                                                        batch_size=batch_size, collate_fn=collate_captions,
+                                                        batch_size=1, collate_fn=collate_captions,
                                                         shuffle=False)
 
             image_data_loader = get_image_data_loader(root=DATASET_ROOT_PATH, split_root=DATASET_SPLIT_ROOT_PATH,
@@ -112,6 +112,7 @@ def precompute_scores(output_file_path: str, vilt_model_path: str = VILT_BASE_MO
                             with Bar(f'Image progress', check_tty=False,
                                      max=len(image_data_loader)) as image_bar:
                                 for image_batch_id, (images_indices, filenames, images) in enumerate(image_data_loader):
+                                    slow_batch_time = time.time()
                                     pixel_bert_transformed_images = []
 
                                     for i in images:
@@ -119,8 +120,9 @@ def precompute_scores(output_file_path: str, vilt_model_path: str = VILT_BASE_MO
 
                                     slow_scores = vilt_model.score_query_vs_images(caption,
                                                                                    pixel_bert_transformed_images)
-                                    for image_ind, sc in zip(images_indices, slow_scores):
-                                        scores[offset_caption_in_partition, image_ind] = sc.cpu().item()
+                                    scores[offset_caption_in_partition, images_indices] = slow_scores
+                                    print(f' Scoring {batch_size} images for caption {c_id} took {time.time() - slow_batch_time}s')
+
                                 image_bar.next()
                         offset_caption_in_partition += 1
                         processed_captions += 1
@@ -153,7 +155,7 @@ def precompute_scores_inverted(output_file_path: str, vilt_model_path: str = VIL
                                                         shuffle=False)
 
             image_data_loader = get_image_data_loader(root=DATASET_ROOT_PATH, split_root=DATASET_SPLIT_ROOT_PATH,
-                                                      split=split, batch_size=batch_size, shuffle=False,
+                                                      split=split, batch_size=1, shuffle=False,
                                                       collate_fn=collate_images, force_transform_to_none=True)
 
             total_num_captions = len(text_data_loader.dataset)
@@ -163,7 +165,7 @@ def precompute_scores_inverted(output_file_path: str, vilt_model_path: str = VIL
 
             scores = torch.zeros(
                 _get_num_captions_in_partition(partition_to_compute, number_partitions, total_num_images),
-                total_num_captions)
+                total_num_captions).to(device)
             print(f' scores.shape {scores.shape}')
             with Bar(f'Image progress', check_tty=False,
                      max=len(image_data_loader)) as image_bar:
@@ -179,9 +181,10 @@ def precompute_scores_inverted(output_file_path: str, vilt_model_path: str = VIL
                             with Bar(f'Caption progress', check_tty=False,
                                      max=len(text_data_loader)) as caption_bar:
                                 for caption_batch_id, (caption_ids, filenames, captions) in enumerate(text_data_loader):
+                                    slow_batch_time = time.time()
                                     slow_scores = vilt_model.score_image_vs_texts(pixel_bert_transformed_image, captions)
-                                    for caption_ind, sc in zip(caption_ids, slow_scores):
-                                        scores[offset_image_in_partition, caption_ind] = sc.cpu().item()
+                                    scores[offset_image_in_partition, caption_ids] = slow_scores
+                                    print(f' Scoring {batch_size} captions for image {image_id} took {time.time() - slow_batch_time}s')
                                 caption_bar.next()
                         offset_image_in_partition += 1
                         processed_images += 1
@@ -202,7 +205,7 @@ def main(*args, **kwargs):
             output_file_path='val-inverted.th',
             vilt_model_path=VILT_BASE_MODEL_LOAD_PATH,
             split='val',
-            batch_size=512,
+            batch_size=8,
             number_partitions=10,
             partition_to_compute=i)
 

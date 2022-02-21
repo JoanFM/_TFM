@@ -104,12 +104,12 @@ VILT_BASE_MODEL_LOAD_PATH = os.getenv('VILT_BASE_MODEL_LOAD_PATH', '../vilt_irtr
 os.environ['DATASET_ROOT_PATH'] = '../flickr30k_images' 
 os.environ['DATASET_SPLIT_ROOT_PATH'] = '../flickr30k_images/flickr30k_entities'
 
-from src.model.precompute_scores import precompute_scores
+from src.model.precompute_scores import precompute_scores_inverted
 
 output_file_path = 'train.th'
 
 for i in range(0, 10):
-  precompute_scores(
+  precompute_scores_inverted(
               output_file_path=output_file_path,
               vilt_model_path=VILT_BASE_MODEL_LOAD_PATH,
               split='train',
