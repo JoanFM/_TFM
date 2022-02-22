@@ -183,8 +183,10 @@ def precompute_scores_inverted(output_file_path: str, vilt_model_path: str = VIL
                                 for caption_batch_id, (caption_ids, filenames, captions) in enumerate(text_data_loader):
                                     slow_batch_time = time.time()
                                     slow_scores = vilt_model.score_image_vs_texts(pixel_bert_transformed_image, captions)
-                                    scores[offset_image_in_partition, caption_ids] = slow_scores
                                     print(f' Scoring {batch_size} captions for image {image_id} took {time.time() - slow_batch_time}s')
+                                    slow_batch_time = time.time()
+                                    scores[offset_image_in_partition, caption_ids] = slow_scores
+                                    print(f' Setting slow scores takes {time.time() - slow_batch_time}s')
                                 caption_bar.next()
                         offset_image_in_partition += 1
                         processed_images += 1
