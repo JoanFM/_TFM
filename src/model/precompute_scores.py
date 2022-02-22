@@ -98,7 +98,7 @@ def precompute_scores(output_file_path: str, vilt_model_path: str = VILT_BASE_MO
 
             scores = torch.zeros(
                 _get_num_captions_in_partition(partition_to_compute, number_partitions, total_num_captions),
-                total_num_images)
+                total_num_images).to(device)
             with Bar(f'Caption progress', check_tty=False,
                      max=len(text_data_loader)) as caption_bar:
                 processed_captions = 0
@@ -120,7 +120,7 @@ def precompute_scores(output_file_path: str, vilt_model_path: str = VILT_BASE_MO
 
                                     slow_scores = vilt_model.score_query_vs_images(caption,
                                                                                    pixel_bert_transformed_images)
-                                    scores[offset_caption_in_partition, images_indices] = slow_scores
+                                    scores[offset_caption_in_partition, images_indices[0]:images_indices[-1] + 1] = slow_scores
                                     print(f' Scoring {batch_size} images for caption {c_id} took {time.time() - slow_batch_time}s')
 
                                 image_bar.next()
