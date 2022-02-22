@@ -178,7 +178,7 @@ def precompute_scores_inverted(output_file_path: str, vilt_model_path: str = VIL
                         break
                     for image_id, image in zip(images_indices, images):
                         start = time.time()
-                        image_slow_scores = torch.Tensor()
+                        image_slow_scores = torch.Tensor().to(device)
                         all_caption_ids = []
                         pixel_bert_transformed_image = vilt_transform(image).to(device)
                         if partition == partition_to_compute:
