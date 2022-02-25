@@ -23,7 +23,7 @@ class TextEncoder(nn.Module):
     ):
         super().__init__()
         if torch.cuda.is_available():
-            dev = "cuda:0"
+            dev = "cuda"
         else:
             dev = "cpu"
         self._device = torch.device(dev)

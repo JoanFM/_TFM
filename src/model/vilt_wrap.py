@@ -46,7 +46,7 @@ def compute_recall():
     conf['loss_names'] = loss_names
 
     if torch.cuda.is_available():
-        dev = 'cuda:0'
+        dev = 'cuda'
     else:
         dev = 'cpu'
     device = torch.device(dev)

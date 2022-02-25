@@ -75,7 +75,7 @@ def precompute_scores(output_file_path: str, vilt_model_path: str = VILT_BASE_MO
                       batch_size=4, number_partitions=1, partition_to_compute=0):
     with torch.no_grad():
         if torch.cuda.is_available():
-            dev = 'cuda:0'
+            dev = 'cuda'
         else:
             dev = 'cpu'
         device = torch.device(dev)
@@ -144,7 +144,7 @@ def precompute_scores_inverted(output_file_path: str, vilt_model_path: str = VIL
                                batch_size=4, number_partitions=1, partition_to_compute=0):
     with torch.no_grad():
         if torch.cuda.is_available():
-            dev = 'cuda:0'
+            dev = 'cuda'
         else:
             dev = 'cpu'
         device = torch.device(dev)

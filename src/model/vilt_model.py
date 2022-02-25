@@ -16,7 +16,7 @@ class ViltModel(ViLTransformerSS):
         super().__init__(config)
         self._config = config
         if torch.cuda.is_available():
-            dev = "cuda:0"
+            dev = "cuda"
         else:
             dev = "cpu"
         self._device = torch.device(dev)

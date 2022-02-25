@@ -156,7 +156,7 @@ def extract_all_image_embeddings_and_filenames(image_encoder, batch_size, root, 
     :return:
     """
     if torch.cuda.is_available():
-        dev = "cuda:0"
+        dev = "cuda"
     else:
         dev = "cpu"
     device = torch.device(dev)
@@ -377,7 +377,7 @@ def train(output_model_path: str,
     :return: Nothing, the outputs are models stored and prints of validation and training loss
     """
     if torch.cuda.is_available():
-        dev = "cuda:0"
+        dev = "cuda"
     else:
         dev = "cpu"
     device = torch.device(dev)

@@ -15,7 +15,7 @@ class DenseVisualFeatureExtractor:
         super().__init__()
         import torchvision.models as models
         if torch.cuda.is_available():
-            dev = "cuda:0"
+            dev = "cuda"
         else:
             dev = "cpu"
         self.device = torch.device(dev)
@@ -58,7 +58,7 @@ class ImageEncoder(nn.Module):
     def __init__(self, layer_size=None, **kwargs):
         super().__init__()
         if torch.cuda.is_available():
-            dev = "cuda:0"
+            dev = "cuda"
         else:
             dev = "cpu"
         self.device = torch.device(dev)

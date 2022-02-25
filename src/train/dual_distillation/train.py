@@ -120,7 +120,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
     if top_k_first_phase is None:
         top_k_first_phase = [5, 10, 50]
     if torch.cuda.is_available():
-        dev = 'cuda:0'
+        dev = 'cuda'
     else:
         dev = 'cpu'
     device = torch.device(dev)
@@ -232,7 +232,7 @@ def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negativ
     :return: The validation loss
     """
     if torch.cuda.is_available():
-        dev = 'cuda:0'
+        dev = 'cuda'
     else:
         dev = 'cpu'
 
@@ -307,7 +307,7 @@ def compute_loss(images, captions, images_indices, captions_indices, matching_fi
                  negative_batch_size, temperature, alpha, beta, reduction_in_loss, cache_query_image_slow_scores):
     cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction=reduction_in_loss)
     if torch.cuda.is_available():
-        dev = 'cuda:0'
+        dev = 'cuda'
     else:
         dev = 'cpu'
     device = torch.device(dev)
@@ -411,7 +411,7 @@ def train(output_model_path: str,
     :return: Nothing, the outputs are models stored and prints of validation and training loss
     """
     if torch.cuda.is_available():
-        dev = 'cuda:0'
+        dev = 'cuda'
     else:
         dev = 'cpu'
     device = torch.device(dev)
