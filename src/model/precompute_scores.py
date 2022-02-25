@@ -80,6 +80,10 @@ def precompute_scores(output_file_path: str, vilt_model_path: str = VILT_BASE_MO
             dev = 'cpu'
         device = torch.device(dev)
         vilt_model = get_vilt_model(load_path=vilt_model_path)
+        if torch.cuda.device_count() > 1:
+            print("Let's use", torch.cuda.device_count(), "GPUs!")
+            # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+            vilt_model = torch.nn.DataParallel(vilt_model)
         vilt_model.to(device)
         with torch.no_grad():
             text_data_loader = get_captions_data_loader(root=DATASET_ROOT_PATH, split_root=DATASET_SPLIT_ROOT_PATH,
@@ -149,6 +153,10 @@ def precompute_scores_inverted(output_file_path: str, vilt_model_path: str = VIL
             dev = 'cpu'
         device = torch.device(dev)
         vilt_model = get_vilt_model(load_path=vilt_model_path)
+        if torch.cuda.device_count() > 1:
+            print("Let's use", torch.cuda.device_count(), "GPUs!")
+            # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+            vilt_model = torch.nn.DataParallel(vilt_model)
         vilt_model.to(device)
         with torch.no_grad():
             text_data_loader = get_captions_data_loader(root=DATASET_ROOT_PATH, split_root=DATASET_SPLIT_ROOT_PATH,
