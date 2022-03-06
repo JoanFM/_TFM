@@ -419,11 +419,13 @@ def train(output_model_path: str,
     os.makedirs(output_model_path, exist_ok=True)
     image_encoder = ImageEncoder(backbone_model=image_encoder_backbone_model)
     text_encoder = TextEncoder(model_path=word2vec_model_path)
-    vilt_model = get_vilt_model(load_path=vilt_model_path)
+    if beta > 0:
+        vilt_model = get_vilt_model(load_path=vilt_model_path)
 
     image_encoder.to(device)
     text_encoder.to(device)
-    vilt_model.to(device)
+    if beta > 0:
+        vilt_model.to(device)
 
     optimizer = torch.optim.Adam([{'params': image_encoder.parameters()}, {'params': text_encoder.parameters()}],
                                  lr=learning_rate)
