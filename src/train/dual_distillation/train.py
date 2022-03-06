@@ -420,6 +420,7 @@ def train(output_model_path: str,
     os.makedirs(output_model_path, exist_ok=True)
     image_encoder = ImageEncoder(backbone_model=image_encoder_backbone_model)
     text_encoder = TextEncoder(model_path=word2vec_model_path)
+    vilt_model = None
     if beta > 0:
         vilt_model = get_vilt_model(load_path=vilt_model_path)
 
@@ -491,7 +492,10 @@ def train(output_model_path: str,
                     image_tensors = torch.stack(image_tensors).to(device)
                     images_embeddings = image_encoder(image_tensors).to(device)
                     texts_embeddings = text_encoder(captions).to(device)
-                    os.environ['PRINT_DOT_PRODUCTS'] = 'True'
+                    if batch_id % 50 == 0:
+                        os.environ['PRINT_DOT_PRODUCTS'] = 'True'
+                    else:
+                        os.environ['PRINT_DOT_PRODUCTS'] = 'False'
                     sum_images += len(images)
                     sum_captions += len(captions)
                     loss = compute_loss(images, captions, images_indices, caption_indices, matching_filenames,
