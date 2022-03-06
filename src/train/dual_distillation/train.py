@@ -492,6 +492,7 @@ def train(output_model_path: str,
                     image_tensors = torch.stack(image_tensors).to(device)
                     images_embeddings = image_encoder(image_tensors).to(device)
                     texts_embeddings = text_encoder(captions).to(device)
+                    
                     if batch_id % 50 == 0:
                         os.environ['PRINT_DOT_PRODUCTS'] = 'True'
                     else:
