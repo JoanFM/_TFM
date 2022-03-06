@@ -133,7 +133,8 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
     text_encoder.fc2.train(False)
     with torch.no_grad():
         image_data_loader = get_image_data_loader(root=root, split_root=split_root, split=split, batch_size=batch_size,
-                                                  collate_fn=collate_images, shuffle=False, force_transform_to_none=True)
+                                                  collate_fn=collate_images, shuffle=False,
+                                                  force_transform_to_none=True)
 
         all_image_embeddings = []
         image_filenames = []
@@ -437,18 +438,18 @@ def train(output_model_path: str,
     val_evals_epochs = []
     train_evals_epochs = []
 
-    run_evaluations(image_encoder, text_encoder, vilt_model,
-                    batch_size, root=DATASET_ROOT_PATH,
-                    split_root=DATASET_SPLIT_ROOT_PATH,
-                    split='test',
-                    cache_query_image_slow_scores=cache_scores['test'])
+    # run_evaluations(image_encoder, text_encoder, vilt_model,
+    #                 batch_size, root=DATASET_ROOT_PATH,
+    #                 split_root=DATASET_SPLIT_ROOT_PATH,
+    #                 split='test',
+    #                 cache_query_image_slow_scores=cache_scores['test'])
 
     with Bar('Epochs', max=num_epochs, check_tty=False) as epoch_bar:
 
         for epoch in range(num_epochs):
             train_data_loader = get_captions_image_data_loader(root=DATASET_ROOT_PATH,
                                                                split_root=DATASET_SPLIT_ROOT_PATH,
-                                                               split='val',
+                                                               split='train',
                                                                shuffle=True,
                                                                num_workers=dataloader_num_worker,
                                                                batch_size=batch_size,
@@ -472,7 +473,8 @@ def train(output_model_path: str,
                      check_tty=False) as training_bar:
                 sum_images = 0
                 sum_captions = 0
-                for batch_id, (caption_indices, images_indices, matching_filenames, images, captions) in enumerate(train_data_loader):
+                for batch_id, (caption_indices, images_indices, matching_filenames, images, captions) in enumerate(
+                        train_data_loader):
                     image_tensors = []
                     for i in images:
                         image_tensors.append(dual_encoder_transform(i))
@@ -492,7 +494,8 @@ def train(output_model_path: str,
                     os.environ['PRINT_DOT_PRODUCTS'] = 'True'
                     sum_images += len(images)
                     sum_captions += len(captions)
-                    loss = compute_loss(images, captions, images_indices, caption_indices, matching_filenames, original_images, vilt_model,
+                    loss = compute_loss(images, captions, images_indices, caption_indices, matching_filenames,
+                                        original_images, vilt_model,
                                         images_embeddings,
                                         texts_embeddings,
                                         negative_batch_size, temperature, alpha, beta, reduction_in_loss,
@@ -502,29 +505,22 @@ def train(output_model_path: str,
                     train_loss.append(loss.item())
                     optimizer.step()
 
-                    if batch_id % 1 == 0:
+                    if batch_id % 50 == 0:
                         print(colored(
                             f'\n[{batch_id}] \t training loss:\t {np.mean(np.array(train_loss))} \t time elapsed:\t {time.time() - time_start} s',
                             'green'))
                         train_loss.clear()
                         time_start = time.time()
-                    if batch_id % 1000 == 0 and batch_id != 0:
-                        torch.save(image_encoder.state_dict(),
-                                   output_model_path + '/model-inter-' + str(epoch + 1) + '-' + str(
-                                       batch_id) + '-image.pt')
-                        torch.save(text_encoder.state_dict(),
-                                   output_model_path + '/model-inter-' + str(epoch + 1) + '-' + str(
-                                       batch_id) + '-text.pt')
-                    # if batch_id % (math.ceil(len(train_data_loader.dataset) / batch_size) / 2) == 0 and batch_id != 0:
-                    #     os.environ['PRINT_DOT_PRODUCTS'] = 'False'
-                    #     val_loss = validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
-                    #                                negative_batch_size, temperature, alpha, beta, reduction_in_loss,
-                    #                                cache_query_image_slow_scores)
-                    #     print(colored(
-                    #         f'\n[{batch_id}]\tvalidation loss:\t{np.mean(np.array(val_loss))}\ttime elapsed:\t{time.time() - time_start} s',
-                    #         'yellow'))
-                    #
-                    #     time_start = time.time()
+                    if batch_id % (math.ceil(len(train_data_loader.dataset) / batch_size) / 4) == 0 and batch_id != 0:
+                        os.environ['PRINT_DOT_PRODUCTS'] = 'False'
+                        val_loss = validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
+                                                   negative_batch_size, temperature, alpha, beta, reduction_in_loss,
+                                                   cache_scores['val'])
+                        print(colored(
+                            f'\n[{batch_id}]\tvalidation loss:\t{np.mean(np.array(val_loss))}\ttime elapsed:\t{time.time() - time_start} s',
+                            'yellow'))
+
+                        time_start = time.time()
                     training_bar.next()
 
                 print(colored(
@@ -536,9 +532,9 @@ def train(output_model_path: str,
                     f'\nEpoch finished in {time.time() - epoch_start} s, saving model to {image_file_path_dump}',
                     'green'))
                 os.environ['PRINT_DOT_PRODUCTS'] = 'False'
-                val_loss = [0]  # validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
-                #           negative_batch_size, temperature, alpha, beta, reduction_in_loss,
-                #           cache_query_image_slow_scores, cache_scores['val'])
+                val_loss = validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
+                                           negative_batch_size, temperature, alpha, beta, reduction_in_loss,
+                                           cache_scores['val'])
                 val_losses_epochs.append(np.mean(np.array(val_loss)))
                 train_losses_epochs.append(np.mean(np.array(train_loss)))
                 print(colored(
@@ -553,36 +549,32 @@ def train(output_model_path: str,
                     f'\n[{batch_id}]\tBest epoch w.r.t training loss:\t{train_losses_epochs.index(min(train_losses_epochs))}',
                     'yellow'))
 
-                if epoch % 50 == 0 and epoch != 0:
+                if epoch % 1 == 0 and epoch != 0:
                     torch.save(image_encoder.state_dict(), image_file_path_dump)
                     torch.save(text_encoder.state_dict(), text_file_path_dump)
 
-            # with open(f'train_loss-{epoch}', 'wb') as f:
-            #     pickle.dump(train_loss, f)
-
             test_evaluations = {}
             val_evaluations = {}
-            if epoch % 50 == 0 and epoch != 0:
-                # test_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
-                #                                    batch_size, root=DATASET_ROOT_PATH,
-                #                                    split_root=DATASET_SPLIT_ROOT_PATH,
-                #                                    split='test',
-                #                                    cache_query_image_slow_scores=cache_scores['test'])
-                # test_evals_epochs.append(test_evaluations)
+            test_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
+                                               batch_size, root=DATASET_ROOT_PATH,
+                                               split_root=DATASET_SPLIT_ROOT_PATH,
+                                               split='test',
+                                               cache_query_image_slow_scores=cache_scores['test'])
+            test_evals_epochs.append(test_evaluations)
 
-                val_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
-                                                  batch_size, root=DATASET_ROOT_PATH,
-                                                  split_root=DATASET_SPLIT_ROOT_PATH,
-                                                  split='val',
-                                                  cache_query_image_slow_scores=cache_scores['val'])
-                val_evals_epochs.append(val_evaluations)
+            val_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
+                                              batch_size, root=DATASET_ROOT_PATH,
+                                              split_root=DATASET_SPLIT_ROOT_PATH,
+                                              split='val',
+                                              cache_query_image_slow_scores=cache_scores['val'])
+            val_evals_epochs.append(val_evaluations)
 
-                # train_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
-                #                                     batch_size, root=DATASET_ROOT_PATH,
-                #                                     split_root=DATASET_SPLIT_ROOT_PATH,
-                #                                     split='train',
-                #                                     top_ks=[5, 10, 20])
-                # train_evals_epochs.append(train_evaluations)
+            # train_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
+            #                                     batch_size, root=DATASET_ROOT_PATH,
+            #                                     split_root=DATASET_SPLIT_ROOT_PATH,
+            #                                     split='train',
+            #                                     top_ks=[5, 10, 20])
+            # train_evals_epochs.append(train_evaluations)
 
             for key in test_evaluations.keys():
                 test_keys_evals_list = [d[key] for d in test_evals_epochs]
@@ -616,7 +608,7 @@ def main_train(*args, **kwargs):
         word2vec_model_path=TEXT_WORD2_VEC_MODEL_PATH,
         image_encoder_backbone_model='resnet50',
         vilt_model_path=VILT_BASE_MODEL_LOAD_PATH,
-        batch_size=8,
+        batch_size=128,
         negative_batch_size=4,
         dataloader_num_worker=1,
         learning_rate=0.1,
@@ -635,10 +627,14 @@ def main_evaluate(*args, **kwargs):
 
     val_cache_scores = CachedScores(os.path.join(cur_dir, '../../model/slow_scores/val.th'))
     image_encoder = ImageEncoder(backbone_model='resnet50')
-    image_encoder.load_state_dict(torch.load(os.path.join(cur_dir, '../../model/checkpoints/model-inter-401-final-image.pt'), map_location=torch.device('cpu')))
+    image_encoder.load_state_dict(
+        torch.load(os.path.join(cur_dir, '../../model/checkpoints/model-inter-401-final-image.pt'),
+                   map_location=torch.device('cpu')))
     image_encoder.eval()
     text_encoder = TextEncoder(model_path=TEXT_WORD2_VEC_MODEL_PATH)
-    text_encoder.load_state_dict(torch.load(os.path.join(cur_dir, '../../model/checkpoints/model-inter-401-final-text.pt'), map_location=torch.device('cpu')))
+    text_encoder.load_state_dict(
+        torch.load(os.path.join(cur_dir, '../../model/checkpoints/model-inter-401-final-text.pt'),
+                   map_location=torch.device('cpu')))
     text_encoder.eval()
 
     vilt_model = get_vilt_model(load_path=VILT_BASE_MODEL_LOAD_PATH)
@@ -655,4 +651,4 @@ def main_evaluate(*args, **kwargs):
 if __name__ == '__main__':
     import sys
 
-    main_evaluate(*sys.argv)
+    main_train(*sys.argv)
