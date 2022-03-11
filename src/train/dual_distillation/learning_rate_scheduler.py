@@ -16,7 +16,7 @@ class LearningRateScheduler(_LRScheduler):
         self.multiplier_warmup = multiplier_warmup
         self.total_epoch_warmup = total_epoch_warmup
         self.last_epoch = last_epoch
-        self.after_scheduler = CosineAnnealingLR(optimizer=optimizer, T_max=T_max, eta_min=eta_min)
+        self.after_scheduler = CosineAnnealingLR(optimizer=optimizer, T_max=T_max, eta_min=eta_min, verbose=True)
         self.finished = False
         super().__init__(optimizer)
 
