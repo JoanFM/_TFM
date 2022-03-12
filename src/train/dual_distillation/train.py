@@ -515,7 +515,7 @@ def train(output_model_path: str,
 
                     loss.backward()
                     train_loss.append(loss.item())
-                    lr_scheduler.step()
+                    optimizer.step()
 
                     if batch_id % 50 == 0:
                         print(colored(
@@ -604,7 +604,7 @@ def train(output_model_path: str,
                     print(colored(
                         f'\n[{epoch}]\tBest epoch w.r.t evaluation {key} in train:\t{train_keys_evals_list.index(max(train_keys_evals_list))}',
                         'yellow'))
-
+        lr_scheduler.step()
         epoch_bar.next()
 
 
