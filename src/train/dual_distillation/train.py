@@ -17,7 +17,7 @@ from vilt.transforms.pixelbert import pixelbert_transform
 from src.dataset import get_captions_image_data_loader, get_image_data_loader, get_captions_data_loader
 from src.dataset.dataset import DEFAULT_TRANSFORM
 from src.evaluate import evaluate
-from src.train.dual_distillation.learning_rate_scheduler import LearningRateScheduler
+import transformers
 
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -384,10 +384,8 @@ def train(output_model_path: str,
           batch_size: int = 8,
           negative_batch_size: int = 4,
           learning_rate: float = 0.001,
-          T_max: int = 2,
-          eta_min: float = 0.001,
-          multiplier_warmup = 10,
-          total_epoch_warmup = 2,
+          num_warmup_steps: int = 5000,
+          num_training_steps: int = 150000,
           temperature=10,
           dataloader_num_worker=1,
           alpha=0.1,
@@ -399,6 +397,8 @@ def train(output_model_path: str,
     """
     Train the model to have an image encoder that encodes into sparse embeddings matching the text encoder's outputs
 
+    :param num_training_steps:
+    :param num_warmup_steps:
     :param cache_scores:
     :param beta:
     :param alpha:
@@ -437,7 +437,7 @@ def train(output_model_path: str,
     optimizer = torch.optim.Adam([{'params': image_encoder.parameters()}, {'params': text_encoder.parameters()}],
                                  lr=learning_rate)
 
-    lr_scheduler = LearningRateScheduler(optimizer=optimizer, total_epoch_warmup=total_epoch_warmup, multiplier_warmup=multiplier_warmup, T_max=T_max, eta_min=eta_min)
+    lr_scheduler = transformers.get_cosine_schedule_with_warmup(optimizer=optimizer, num_warmup_steps=num_warmup_steps, num_training_steps=num_training_steps)
     optimizer.zero_grad()
 
     train_losses_epochs = []
@@ -516,6 +516,7 @@ def train(output_model_path: str,
                     loss.backward()
                     train_loss.append(loss.item())
                     optimizer.step()
+                    lr_scheduler.step()
 
                     if batch_id % 50 == 0:
                         print(colored(
@@ -604,7 +605,6 @@ def train(output_model_path: str,
                     print(colored(
                         f'\n[{epoch}]\tBest epoch w.r.t evaluation {key} in train:\t{train_keys_evals_list.index(max(train_keys_evals_list))}',
                         'yellow'))
-        lr_scheduler.step()
         epoch_bar.next()
 
 
