@@ -11,6 +11,9 @@ from progress.bar import Bar
 
 from src.model.dual_distillation.image import ImageEncoder
 from src.model.dual_distillation.text import TextEncoder
+from src.model.dual_distillation.clip_image import CLIPImageEncoder
+from src.model.dual_distillation.clip_text import CLIPTextEncoder
+
 from src.model.vilt_model import get_vilt_model
 from vilt.transforms.pixelbert import pixelbert_transform
 
@@ -21,7 +24,6 @@ import transformers
 
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-dual_encoder_transform = DEFAULT_TRANSFORM
 vilt_transform = pixelbert_transform(384)
 
 softmax_dim_0 = torch.nn.Softmax(dim=0)
@@ -100,10 +102,12 @@ def colored(
 
 
 def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, split_root, split,
-                    top_k_first_phase=None, top_ks=None, cache_query_image_slow_scores=None):
+                    top_k_first_phase=None, top_ks=None, cache_query_image_slow_scores=None, dual_encoder_transform=DEFAULT_TRANSFORM):
     """
     Runs evaluations of an ImageEncoder resulting from some training
 
+    :param dual_encoder_transform:
+    :param cache_query_image_slow_scores:
     :param top_k_first_phase:
     :param image_encoder: The ImageEncoder to extract the embeddings from where to compute evaluation
     :param text_encoder: The TextEncoder to extract the embeddings from where to compute evaluation
@@ -116,21 +120,24 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
     :return:
     """
     if top_ks is None:
-        top_ks = [5, 10, 50, 100, 500]
+        top_ks = [1, 5, 10, 50, 100, 500]
     if top_k_first_phase is None:
-        top_k_first_phase = [5, 10, 50]
+        top_k_first_phase = [1, 5, 10, 50]
     if torch.cuda.is_available():
         dev = 'cuda'
     else:
         dev = 'cpu'
     device = torch.device(dev)
-    image_encoder.train(False)
-    image_encoder.feature_extractor.train(False)
-    image_encoder.common_space_embedding.train(False)
-    text_encoder.train(False)
-    text_encoder.word_embd.train(False)
-    text_encoder.fc1.train(False)
-    text_encoder.fc2.train(False)
+    try:
+        image_encoder.train(False)
+        image_encoder.feature_extractor.train(False)
+        image_encoder.common_space_embedding.train(False)
+        text_encoder.train(False)
+        text_encoder.word_embd.train(False)
+        text_encoder.fc1.train(False)
+        text_encoder.fc2.train(False)
+    except:
+        pass
     with torch.no_grad():
         image_data_loader = get_image_data_loader(root=root, split_root=split_root, split=split, batch_size=batch_size,
                                                   collate_fn=collate_images, shuffle=False,
@@ -437,7 +444,9 @@ def train(output_model_path: str,
     optimizer = torch.optim.Adam([{'params': image_encoder.parameters()}, {'params': text_encoder.parameters()}],
                                  lr=learning_rate)
 
-    lr_scheduler = transformers.get_cosine_schedule_with_warmup(optimizer=optimizer, num_warmup_steps=num_warmup_steps, num_training_steps=num_training_steps)
+    lr_scheduler = transformers.get_cosine_with_hard_restarts_schedule_with_warmup(optimizer=optimizer,
+                                                                                   num_warmup_steps=num_warmup_steps,
+                                                                                   num_training_steps=num_training_steps)
     optimizer.zero_grad()
 
     train_losses_epochs = []
@@ -499,7 +508,7 @@ def train(output_model_path: str,
                     image_tensors = torch.stack(image_tensors).to(device)
                     images_embeddings = image_encoder(image_tensors).to(device)
                     texts_embeddings = text_encoder(captions).to(device)
-                    
+
                     if batch_id % 50 == 0:
                         os.environ['PRINT_DOT_PRODUCTS'] = 'True'
                     else:
@@ -623,7 +632,7 @@ def main_train(*args, **kwargs):
         batch_size=128,
         negative_batch_size=4,
         dataloader_num_worker=1,
-        learning_rate=0.1,
+        learning_rate=0.001,
         alpha=1,
         temperature=10,
         beta=1,
@@ -638,6 +647,7 @@ def main_evaluate(*args, **kwargs):
     os.path.dirname(os.path.abspath(__file__))
 
     val_cache_scores = CachedScores(os.path.join(cur_dir, '../../model/slow_scores/val.th'))
+    test_cache_scores = CachedScores(os.path.join(cur_dir, '../../model/slow_scores/test.th'))
     image_encoder = ImageEncoder(backbone_model='resnet50')
     image_encoder.load_state_dict(
         torch.load(os.path.join(cur_dir, '../../model/checkpoints/model-inter-401-final-image.pt'),
@@ -653,14 +663,31 @@ def main_evaluate(*args, **kwargs):
     val_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
                                       8, root=DATASET_ROOT_PATH,
                                       split_root=DATASET_SPLIT_ROOT_PATH,
-                                      split='val',
+                                      split='test',
                                       top_ks=[1],
                                       top_k_first_phase=[1],
-                                      cache_query_image_slow_scores=val_cache_scores)
+                                      cache_query_image_slow_scores=test_cache_scores)
     print(f' val_evaluations')
+
+
+def main_evaluate_clip(*args, **kwargs):
+    from src.model.cached_scores import CachedScores
+    import os
+    os.path.dirname(os.path.abspath(__file__))
+
+    test_cache_scores = CachedScores(os.path.join(cur_dir, '../../model/slow_scores/test.th'))
+    image_encoder = CLIPImageEncoder()
+    text_encoder = CLIPTextEncoder()
+    run_evaluations(image_encoder, text_encoder, None,
+                    8, root=DATASET_ROOT_PATH,
+                    split_root=DATASET_SPLIT_ROOT_PATH,
+                    split='test',
+                    top_ks=[1, 5, 10, 50],
+                    top_k_first_phase=[1, 5, 10, 50],
+                    cache_query_image_slow_scores=test_cache_scores)
 
 
 if __name__ == '__main__':
     import sys
 
-    main_train(*sys.argv)
+    main_evaluate_clip(*sys.argv)
