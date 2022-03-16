@@ -102,7 +102,8 @@ def colored(
 
 
 def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, split_root, split,
-                    top_k_first_phase=None, top_ks=None, cache_query_image_slow_scores=None, dual_encoder_transform=DEFAULT_TRANSFORM):
+                    top_k_first_phase=None, top_ks=None, cache_query_image_slow_scores=None,
+                    dual_encoder_transform=DEFAULT_TRANSFORM):
     """
     Runs evaluations of an ImageEncoder resulting from some training
 
@@ -432,14 +433,24 @@ def train(output_model_path: str,
     os.makedirs(output_model_path, exist_ok=True)
     image_encoder = ImageEncoder(backbone_model=image_encoder_backbone_model)
     text_encoder = TextEncoder(model_path=word2vec_model_path)
+
     vilt_model = None
     if beta > 0:
         vilt_model = get_vilt_model(load_path=vilt_model_path)
 
     image_encoder.to(device)
     text_encoder.to(device)
+
     if beta > 0:
         vilt_model.to(device)
+
+    if torch.cuda.device_count() > 1:
+        print("Let's use", torch.cuda.device_count(), "GPUs!")
+        # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+        image_encoder = torch.nn.DataParallel(image_encoder)
+        text_encoder = torch.nn.DataParallel(text_encoder)
+        if beta > 0:
+            vilt_model = torch.nn.DataParallel(vilt_model)
 
     optimizer = torch.optim.Adam([{'params': image_encoder.parameters()}, {'params': text_encoder.parameters()}],
                                  lr=learning_rate)
@@ -660,14 +671,13 @@ def main_evaluate(*args, **kwargs):
     text_encoder.eval()
 
     vilt_model = get_vilt_model(load_path=VILT_BASE_MODEL_LOAD_PATH)
-    val_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
-                                      8, root=DATASET_ROOT_PATH,
-                                      split_root=DATASET_SPLIT_ROOT_PATH,
-                                      split='test',
-                                      top_ks=[1],
-                                      top_k_first_phase=[1],
-                                      cache_query_image_slow_scores=test_cache_scores)
-    print(f' val_evaluations')
+    run_evaluations(image_encoder, text_encoder, vilt_model,
+                    8, root=DATASET_ROOT_PATH,
+                    split_root=DATASET_SPLIT_ROOT_PATH,
+                    split='test',
+                    top_ks=[1],
+                    top_k_first_phase=[1],
+                    cache_query_image_slow_scores=test_cache_scores)
 
 
 def main_evaluate_clip(*args, **kwargs):
