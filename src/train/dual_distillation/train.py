@@ -154,13 +154,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
                     pixel_bert_transformed_images.append(vilt_transform(i).to(device))
                     image_tensors.append(dual_encoder_transform(i))
 
-                i_tensors = torch.stack(image_tensors)
-                if torch.cuda.device_count() <= 1:
-                    i_tensors = i_tensors.to(device)
-
-                images_embeddings = image_encoder(i_tensors)
-                if torch.cuda.device_count() <= 1:
-                    images_embeddings = images_embeddings.to(device)
+                images_embeddings = image_encoder(torch.stack(image_tensors).to(device))
                 all_image_embeddings.append(images_embeddings)
                 image_filenames.extend(filenames)
                 all_images_ids.extend(image_ids)
@@ -178,9 +172,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
         with Bar(f'Computing dot products for every query', check_tty=False,
                  max=len(text_data_loader)) as dot_prod_bar:
             for batch_id, (caption_ids, filenames, captions) in enumerate(text_data_loader):
-                texts_embeddings = text_encoder(captions)
-                if torch.cuda.device_count() <= 1:
-                    texts_embeddings = texts_embeddings.to(device)
+                texts_embeddings = text_encoder(captions).to(device)
                 d_product = texts_embeddings.matmul(all_image_embeddings.T)
                 dot_products.append(d_product)
                 for filename in filenames:
@@ -444,12 +436,6 @@ def train(output_model_path: str,
     if beta > 0:
         vilt_model = get_vilt_model(load_path=vilt_model_path)
 
-    image_encoder.to(device)
-    text_encoder.to(device)
-
-    if beta > 0:
-        vilt_model.to(device)
-
     if torch.cuda.device_count() > 1:
         print("Let's use", torch.cuda.device_count(), "GPUs!")
         # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
@@ -457,6 +443,12 @@ def train(output_model_path: str,
         text_encoder = torch.nn.DataParallel(text_encoder)
         if beta > 0:
             vilt_model = torch.nn.DataParallel(vilt_model)
+
+    image_encoder.to(device)
+    text_encoder.to(device)
+
+    if beta > 0:
+        vilt_model.to(device)
 
     optimizer = torch.optim.Adam([{'params': image_encoder.parameters()}, {'params': text_encoder.parameters()}],
                                  lr=learning_rate)
