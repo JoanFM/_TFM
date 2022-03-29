@@ -154,7 +154,13 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
                     pixel_bert_transformed_images.append(vilt_transform(i).to(device))
                     image_tensors.append(dual_encoder_transform(i))
 
-                images_embeddings = image_encoder(torch.stack(image_tensors).to(device)).to(device)
+                i_tensors = torch.stack(image_tensors)
+                if torch.cuda.device_count() <= 1:
+                    i_tensors = i_tensors.to(device)
+
+                images_embeddings = image_encoder(i_tensors)
+                if torch.cuda.device_count() <= 1:
+                    images_embeddings = images_embeddings.to(device)
                 all_image_embeddings.append(images_embeddings)
                 image_filenames.extend(filenames)
                 all_images_ids.extend(image_ids)
@@ -172,7 +178,9 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
         with Bar(f'Computing dot products for every query', check_tty=False,
                  max=len(text_data_loader)) as dot_prod_bar:
             for batch_id, (caption_ids, filenames, captions) in enumerate(text_data_loader):
-                texts_embeddings = text_encoder(captions).to(device)
+                texts_embeddings = text_encoder(captions)
+                if torch.cuda.device_count() <= 1:
+                    texts_embeddings = texts_embeddings.to(device)
                 d_product = texts_embeddings.matmul(all_image_embeddings.T)
                 dot_products.append(d_product)
                 for filename in filenames:
@@ -223,7 +231,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
 
 
 def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negative_batch_size, temperature, alpha, beta,
-                    reduction_in_loss, cache_query_image_slow_scores):
+                    reduction_in_loss, cache_query_image_slow_scores, dual_encoder_transform=DEFAULT_TRANSFORM):
     """
     Runs a loop to compute the validation loss
 
@@ -397,8 +405,8 @@ def train(output_model_path: str,
           alpha=0.1,
           beta=1,
           reduction_in_loss='mean',
-          cache_scores={'train': None, 'val': None, 'test': None}
-
+          cache_scores={'train': None, 'val': None, 'test': None},
+          dual_encoder_transform=DEFAULT_TRANSFORM
           ):
     """
     Train the model to have an image encoder that encodes into sparse embeddings matching the text encoder's outputs
