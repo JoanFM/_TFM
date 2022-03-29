@@ -11,8 +11,6 @@ from progress.bar import Bar
 
 from src.model.dual_distillation.image import ImageEncoder
 from src.model.dual_distillation.text import TextEncoder
-from src.model.dual_distillation.clip_image import CLIPImageEncoder
-from src.model.dual_distillation.clip_text import CLIPTextEncoder
 
 from src.model.vilt_model import get_vilt_model
 from vilt.transforms.pixelbert import pixelbert_transform
@@ -683,6 +681,8 @@ def main_evaluate(*args, **kwargs):
 def main_evaluate_clip(*args, **kwargs):
     from src.model.cached_scores import CachedScores
     import os
+    from src.model.dual_distillation.clip_image import CLIPImageEncoder
+    from src.model.dual_distillation.clip_text import CLIPTextEncoder
     os.path.dirname(os.path.abspath(__file__))
 
     test_cache_scores = CachedScores(os.path.join(cur_dir, '../../model/slow_scores/test.th'))
