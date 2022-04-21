@@ -450,6 +450,8 @@ def train(output_model_path: str,
     if torch.cuda.device_count() > 1:
         print("Let's use", torch.cuda.device_count(), "GPUs!")
         # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+        image_encoder.feature_extractor = torch.nn.DataParallel(image_encoder.feature_extractor)
+        image_encoder.common_space_embedding = torch.nn.DataParallel(image_encoder.common_space_embedding)
         image_encoder = torch.nn.DataParallel(image_encoder)
         text_encoder = torch.nn.DataParallel(text_encoder)
         if beta > 0:
