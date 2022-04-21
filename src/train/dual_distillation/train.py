@@ -128,13 +128,24 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
         dev = 'cpu'
     device = torch.device(dev)
     try:
-        image_encoder.train(False)
-        image_encoder.feature_extractor.train(False)
-        image_encoder.common_space_embedding.train(False)
-        text_encoder.train(False)
-        text_encoder.word_embd.train(False)
-        text_encoder.fc1.train(False)
-        text_encoder.fc2.train(False)
+        if isinstance(image_encoder, torch.nn.DataParallel):
+            image_encoder.train(False)
+            image_encoder.module.feature_extractor.train(False)
+            image_encoder.module.common_space_embedding.train(False)
+        else:
+            image_encoder.train(False)
+            image_encoder.feature_extractor.train(False)
+            image_encoder.common_space_embedding.train(False)
+        if isinstance(text_encoder, torch.nn.DataParallel):
+            text_encoder.train(False)
+            text_encoder.module.word_embd.train(False)
+            text_encoder.module.fc1.train(False)
+            text_encoder.module.fc2.train(False)
+        else:
+            text_encoder.train(False)
+            text_encoder.word_embd.train(False)
+            text_encoder.fc1.train(False)
+            text_encoder.fc2.train(False)
     except:
         pass
     with torch.no_grad():
@@ -505,13 +516,25 @@ def train(output_model_path: str,
                     for i in images:
                         image_tensors.append(dual_encoder_transform(i))
 
-                    image_encoder.train()
-                    image_encoder.feature_extractor.train()
-                    image_encoder.common_space_embedding.train()
-                    text_encoder.train()
-                    text_encoder.word_embd.train()
-                    text_encoder.fc1.train()
-                    text_encoder.fc2.train()
+                    if isinstance(image_encoder, torch.nn.DataParallel):
+                        image_encoder.train()
+                        image_encoder.module.feature_extractor.train()
+                        image_encoder.module.common_space_embedding.train()
+                    else:
+                        image_encoder.train()
+                        image_encoder.feature_extractor.train()
+                        image_encoder.common_space_embedding.train()
+                    if isinstance(text_encoder, torch.nn.DataParallel):
+                        text_encoder.train()
+                        text_encoder.module.word_embd.train()
+                        text_encoder.module.fc1.train()
+                        text_encoder.module.fc2.train()
+                    else:
+                        text_encoder.train()
+                        text_encoder.word_embd.train()
+                        text_encoder.fc1.train()
+                        text_encoder.fc2.train()
+
                     optimizer.zero_grad()
                     original_images = images
                     image_tensors = torch.stack(image_tensors).to(device)
