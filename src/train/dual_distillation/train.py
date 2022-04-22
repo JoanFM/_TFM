@@ -255,12 +255,22 @@ def validation_loop(image_encoder, text_encoder, text_tokenizer, vilt_model, dat
 
     device = torch.device(dev)
     with torch.no_grad():
-        image_encoder.train(False)
-        image_encoder.common_space_embedding.train(False)
-        text_encoder.train(False)
-        text_encoder.word_embd.train(False)
-        text_encoder.fc1.train(False)
-        text_encoder.fc2.train(False)
+        if isinstance(image_encoder, torch.nn.DataParallel):
+            image_encoder.train(False)
+            image_encoder.module.common_space_embedding.train(False)
+        else:
+            image_encoder.train(False)
+            image_encoder.common_space_embedding.train(False)
+        if isinstance(text_encoder, torch.nn.DataParallel):
+            text_encoder.train(False)
+            text_encoder.module.word_embd.train(False)
+            text_encoder.module.fc1.train(False)
+            text_encoder.module.fc2.train(False)
+        else:
+            text_encoder.train(False)
+            text_encoder.word_embd.train(False)
+            text_encoder.fc1.train(False)
+            text_encoder.fc2.train(False)
         val_loss = []
         for batch_id, (caption_indices, images_indices, matching_filenames, images, captions) in enumerate(dataloader):
 
