@@ -21,10 +21,9 @@ class ImageEncoder(nn.Module):
         import torchvision.models as models
         self.model = getattr(models, backbone_model)(pretrained=True)
         self.model.fc = Identity()
-        previous_layer = self.pre_linear_dim
+        previous_layer = self.pre_linear_dim()
         self.common_space_embedding = nn.Linear(in_features=previous_layer, out_features=common_layer_size)
 
-    @property
     def pre_linear_dim(self):
         random_image_array = np.random.random((8, 3, 224, 224))
         content = torch.Tensor(random_image_array)
