@@ -130,11 +130,9 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
     try:
         if isinstance(image_encoder, torch.nn.DataParallel):
             image_encoder.train(False)
-            image_encoder.module.feature_extractor.train(False)
             image_encoder.module.common_space_embedding.train(False)
         else:
             image_encoder.train(False)
-            image_encoder.feature_extractor.train(False)
             image_encoder.common_space_embedding.train(False)
         if isinstance(text_encoder, torch.nn.DataParallel):
             text_encoder.train(False)
@@ -450,8 +448,6 @@ def train(output_model_path: str,
     if torch.cuda.device_count() > 1:
         print("Let's use", torch.cuda.device_count(), "GPUs!")
         # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
-        image_encoder.feature_extractor = torch.nn.DataParallel(image_encoder.feature_extractor)
-        image_encoder.common_space_embedding = torch.nn.DataParallel(image_encoder.common_space_embedding)
         image_encoder = torch.nn.DataParallel(image_encoder)
         text_encoder = torch.nn.DataParallel(text_encoder)
         if beta > 0:
@@ -520,11 +516,9 @@ def train(output_model_path: str,
 
                     if isinstance(image_encoder, torch.nn.DataParallel):
                         image_encoder.train()
-                        image_encoder.module.feature_extractor.train()
                         image_encoder.module.common_space_embedding.train()
                     else:
                         image_encoder.train()
-                        image_encoder.feature_extractor.train()
                         image_encoder.common_space_embedding.train()
                     if isinstance(text_encoder, torch.nn.DataParallel):
                         text_encoder.train()
