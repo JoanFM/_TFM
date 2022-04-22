@@ -13,31 +13,20 @@ nlp = spacy.load('en_core_web_sm')
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 
 
-class TextEncoder(nn.Module):
+class TextTokenizer(nn.Module):
     def __init__(
             self,
-            embd_dim=512,
-            model_path='filtered_f30k_word2vec.model',
-            output_dim=2048,
+            word2vec_model_path='filtered_f30k_word2vec.model',
             max_length_tokens=12,
     ):
         super().__init__()
-        if torch.cuda.is_available():
-            dev = "cuda"
-        else:
-            dev = "cpu"
-        self._device = torch.device(dev)
-        self.gensim_model = KeyedVectors.load(model_path)
-        weights = torch.FloatTensor(self.gensim_model.vectors)
-        self.word_embd = nn.Embedding.from_pretrained(weights, freeze=False)
-        self.fc1 = nn.Linear(self.word_embd.embedding_dim, output_dim)
-        self.relu = nn.ReLU(inplace=True)
-        self.fc2 = nn.Linear(output_dim, embd_dim)
+        self.gensim_model = KeyedVectors.load(word2vec_model_path)
+
         self.max_length_tokens = max_length_tokens
 
     @property
-    def in_cuda(self):
-        return next(self.parameters()).is_cuda
+    def word2vec_embd_dim(self):
+        return self.word_embd.embedding_dim
 
     def _zero_pad_tensor_token(self, tensor, size):
         if len(tensor) >= size:
@@ -65,9 +54,23 @@ class TextEncoder(nn.Module):
         return torch.stack(tokens, dim=0)
 
     def forward(self, x):
-        x = self._words_to_token_ids(x)
-        if self.in_cuda:
-            x = x.to(self._device)
+        return self._words_to_token_ids(x)
+
+
+class TextEncoder(nn.Module):
+    def __init__(
+            self,
+            gensim_model_vector_weights,
+            embd_dim=512,
+            output_dim=2048,
+    ):
+        super().__init__()
+        self.word_embd = nn.Embedding.from_pretrained(gensim_model_vector_weights, freeze=False)
+        self.fc1 = nn.Linear(self.word_embd.embedding_dim, output_dim)
+        self.relu = nn.ReLU(inplace=True)
+        self.fc2 = nn.Linear(output_dim, embd_dim)
+
+    def forward(self, x):
         x = self.word_embd(x)
         x = self.relu(self.fc1(x))
         # x is of shape (batch_size, tokens, output_dim)

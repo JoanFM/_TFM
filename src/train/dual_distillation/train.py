@@ -10,7 +10,7 @@ from typing import Optional, Union
 from progress.bar import Bar
 
 from src.model.dual_distillation.image import ImageEncoder
-from src.model.dual_distillation.text import TextEncoder
+from src.model.dual_distillation.text import TextEncoder, TextTokenizer
 
 from src.model.vilt_model import get_vilt_model
 from vilt.transforms.pixelbert import pixelbert_transform
@@ -99,7 +99,7 @@ def colored(
     return text
 
 
-def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, split_root, split,
+def run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model, batch_size, root, split_root, split,
                     top_k_first_phase=None, top_ks=None, cache_query_image_slow_scores=None,
                     dual_encoder_transform=DEFAULT_TRANSFORM):
     """
@@ -181,7 +181,8 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
         with Bar(f'Computing dot products for every query', check_tty=False,
                  max=len(text_data_loader)) as dot_prod_bar:
             for batch_id, (caption_ids, filenames, captions) in enumerate(text_data_loader):
-                texts_embeddings = text_encoder(captions).to(device)
+                tokenized_captions = text_tokenizer(captions).to(device)
+                texts_embeddings = text_encoder(tokenized_captions).to(device)
                 d_product = texts_embeddings.matmul(all_image_embeddings.T)
                 dot_products.append(d_product)
                 for filename in filenames:
@@ -231,7 +232,7 @@ def run_evaluations(image_encoder, text_encoder, vilt_model, batch_size, root, s
         return t2i_evaluations
 
 
-def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negative_batch_size, temperature, alpha, beta,
+def validation_loop(image_encoder, text_encoder, text_tokenizer, vilt_model, dataloader, negative_batch_size, temperature, alpha, beta,
                     reduction_in_loss, cache_query_image_slow_scores, dual_encoder_transform=DEFAULT_TRANSFORM):
     """
     Runs a loop to compute the validation loss
@@ -255,7 +256,6 @@ def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negativ
     device = torch.device(dev)
     with torch.no_grad():
         image_encoder.train(False)
-        image_encoder.feature_extractor.train(False)
         image_encoder.common_space_embedding.train(False)
         text_encoder.train(False)
         text_encoder.word_embd.train(False)
@@ -270,7 +270,8 @@ def validation_loop(image_encoder, text_encoder, vilt_model, dataloader, negativ
 
             original_images = images
             images_embeddings = image_encoder(torch.stack(image_tensors).to(device)).to(device)
-            texts_embeddings = text_encoder(captions).to(device)
+            tokenized_captions = text_tokenizer(captions).to(device)
+            texts_embeddings = text_encoder(tokenized_captions).to(device)
             loss = compute_loss(images, captions, images_indices, caption_indices, matching_filenames, original_images,
                                 vilt_model, images_embeddings,
                                 texts_embeddings,
@@ -439,7 +440,8 @@ def train(output_model_path: str,
 
     os.makedirs(output_model_path, exist_ok=True)
     image_encoder = ImageEncoder(backbone_model=image_encoder_backbone_model)
-    text_encoder = TextEncoder(model_path=word2vec_model_path)
+    text_tokenizer = TextTokenizer(word2vec_model_path=word2vec_model_path)
+    text_encoder = TextEncoder(gensim_model_vector_weights=torch.FloatTensor(text_tokenizer.gensim_model.vectors))
 
     vilt_model = None
     if beta > 0:
@@ -473,7 +475,7 @@ def train(output_model_path: str,
     val_evals_epochs = []
     train_evals_epochs = []
 
-    run_evaluations(image_encoder, text_encoder, vilt_model,
+    run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model,
                     batch_size, root=DATASET_ROOT_PATH,
                     split_root=DATASET_SPLIT_ROOT_PATH,
                     split='test',
@@ -535,7 +537,8 @@ def train(output_model_path: str,
                     original_images = images
                     image_tensors = torch.stack(image_tensors).to(device)
                     images_embeddings = image_encoder(image_tensors).to(device)
-                    texts_embeddings = text_encoder(captions).to(device)
+                    tokenized_captions = text_tokenizer(captions).to(device)
+                    texts_embeddings = text_encoder(tokenized_captions).to(device)
 
                     if batch_id % 50 == 0:
                         os.environ['PRINT_DOT_PRODUCTS'] = 'True'
@@ -563,7 +566,7 @@ def train(output_model_path: str,
                         time_start = time.time()
                     if batch_id % (math.ceil(len(train_data_loader.dataset) / batch_size) / 4) == 0 and batch_id != 0:
                         os.environ['PRINT_DOT_PRODUCTS'] = 'False'
-                        val_loss = validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
+                        val_loss = validation_loop(image_encoder, text_encoder, text_tokenizer, vilt_model, val_data_loader,
                                                    negative_batch_size, temperature, alpha, beta, reduction_in_loss,
                                                    cache_scores['val'])
                         print(colored(
@@ -582,7 +585,7 @@ def train(output_model_path: str,
                     f'\nEpoch finished in {time.time() - epoch_start} s, saving model to {image_file_path_dump}',
                     'green'))
                 os.environ['PRINT_DOT_PRODUCTS'] = 'False'
-                val_loss = validation_loop(image_encoder, text_encoder, vilt_model, val_data_loader,
+                val_loss = validation_loop(image_encoder, text_encoder, text_tokenizer, vilt_model, val_data_loader,
                                            negative_batch_size, temperature, alpha, beta, reduction_in_loss,
                                            cache_scores['val'])
                 val_losses_epochs.append(np.mean(np.array(val_loss)))
@@ -605,14 +608,14 @@ def train(output_model_path: str,
 
             test_evaluations = {}
             val_evaluations = {}
-            test_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
+            test_evaluations = run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model,
                                                batch_size, root=DATASET_ROOT_PATH,
                                                split_root=DATASET_SPLIT_ROOT_PATH,
                                                split='test',
                                                cache_query_image_slow_scores=cache_scores['test'])
             test_evals_epochs.append(test_evaluations)
 
-            val_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
+            val_evaluations = run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model,
                                               batch_size, root=DATASET_ROOT_PATH,
                                               split_root=DATASET_SPLIT_ROOT_PATH,
                                               split='val',
