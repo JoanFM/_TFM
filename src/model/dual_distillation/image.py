@@ -3,6 +3,14 @@ import numpy as np
 import torch.nn as nn
 
 
+class Identity(nn.Module):
+    def __init__(self):
+        super(Identity, self).__init__()
+
+    def forward(self, x):
+        return x
+
+
 class DenseVisualFeatureExtractor(nn.Module):
     """
     The class in charge of extracting the dense features from a pretrained model
@@ -14,7 +22,7 @@ class DenseVisualFeatureExtractor(nn.Module):
         super().__init__()
         import torchvision.models as models
         self.model = getattr(models, backbone_model)(pretrained=True)
-        self.layer = self.model._modules.get('avgpool')
+        self.model.fc = Identity()
 
     @property
     def output_dim(self):
@@ -22,21 +30,8 @@ class DenseVisualFeatureExtractor(nn.Module):
         content = torch.Tensor(random_image_array)
         return self(content).shape[1]
 
-    def _get_features(self, content):
-        feature_map = None
-
-        def get_activation(model, model_input, output):
-            nonlocal feature_map
-            feature_map = output
-
-        handle = self.layer.register_forward_hook(get_activation)
-        self.model(content)
-        handle.remove()
-
-        return feature_map
-
     def forward(self, x):
-        return self._get_features(x)
+        return self.model(x)
 
 
 class ImageEncoder(nn.Module):
