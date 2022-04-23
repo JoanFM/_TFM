@@ -391,7 +391,6 @@ def compute_loss(images, captions, images_indices, captions_indices, matching_fi
     if os.getenv('PRINT_DOT_PRODUCTS') == 'True':
         with torch.no_grad():
             print(f' num captions: {len(captions)}, num images: {len(images)}')
-            print(f' \ndot_products {all_dot_products[0]}')
             print(f' \ndot_products diagonal {torch.diagonal(all_dot_products, 0)}')
             ordinals = []
             sorts = torch.sort(all_dot_products, descending=True, dim=1)
@@ -550,8 +549,8 @@ def train(output_model_path: str,
                     tokenized_captions = text_tokenizer(captions).to(device)
                     texts_embeddings = text_encoder(tokenized_captions).to(device)
 
-                    if batch_id % 50 == 0:
-                        os.environ['PRINT_DOT_PRODUCTS'] = 'True'
+                    if batch_id % 200 == 0:
+                        os.environ['PRINT_DOT_PRODUCTS'] = 'False'
                     else:
                         os.environ['PRINT_DOT_PRODUCTS'] = 'False'
                     sum_images += len(images)
