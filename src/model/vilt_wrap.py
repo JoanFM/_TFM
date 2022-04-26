@@ -11,7 +11,7 @@ DATASET_SPLIT_ROOT_PATH = os.getenv('DATASET_SPLIT_ROOT_PATH', '/hdd/master/tfm/
 VILT_BASE_MODEL_LOAD_PATH = os.getenv('VILT_BASE_MODEL_LOAD_PATH', '../vilt_irtr_f30k.ckpt')
 
 
-def compute_recall():
+def compute_recall(dset='flickr'):
     import copy
     from vilt import config
     from vilt.transforms.pixelbert import pixelbert_transform
@@ -60,12 +60,12 @@ def compute_recall():
                                           split_root=DATASET_SPLIT_ROOT_PATH,
                                           split='test',
                                           transform=pixelbert_transform(384),
-                                          batch_size=1)
+                                          batch_size=1, dset=dset)
 
     text_dataset = get_captions_data_loader(root=DATASET_ROOT_PATH,
                                             split_root=DATASET_SPLIT_ROOT_PATH,
                                             split='test',
-                                            batch_size=1)
+                                            batch_size=1, dset=dset)
 
     images = []
     filenames = []
@@ -94,7 +94,7 @@ def compute_recall():
              {}, print_results=True)
 
 
-def compute_recall_with_cache():
+def compute_recall_with_cache(dset='flickr'):
     import os
     from src.model.cached_scores import CachedScores
     from vilt.transforms.pixelbert import pixelbert_transform
@@ -105,12 +105,12 @@ def compute_recall_with_cache():
                                           split_root=DATASET_SPLIT_ROOT_PATH,
                                           split='test',
                                           transform=pixelbert_transform(384),
-                                          batch_size=1)
+                                          batch_size=1, dset=dset)
 
     text_dataset = get_captions_data_loader(root=DATASET_ROOT_PATH,
                                             split_root=DATASET_SPLIT_ROOT_PATH,
                                             split='test',
-                                            batch_size=1)
+                                            batch_size=1, dset=dset)
 
     images = []
     filenames = []

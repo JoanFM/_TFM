@@ -6,6 +6,8 @@ import torch
 import torchvision
 import torch.utils.data as data
 
+import torchvision.datasets as dset
+
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 
 DEFAULT_TRANSFORM = torchvision.transforms.Compose([
@@ -16,7 +18,90 @@ DEFAULT_TRANSFORM = torchvision.transforms.Compose([
         std=[0.229, 0.224, 0.225],
     )])
 
+DEFAULT_TRANSFORM_COCO = torchvision.transforms.Compose([
+    torchvision.transforms.PILToTensor(),
+    torchvision.transforms.Resize((224, 224)),
+    torchvision.transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225],
+    )])
+
 TO_TENSOR_TRANSFORM = torchvision.transforms.ToTensor()
+
+
+class COCODataset(data.Dataset):
+    """
+    Dataset loader for COCO full datasets.
+    """
+
+    def __init__(self, root, split_root, split, transform=None, **kwargs):
+        image_split = split
+        ann_split = split
+        if split == 'validation':
+            ann_split = 'val'
+        elif split == 'val':
+            image_split = 'validation'
+
+        self.images_root = os.path.join(root, f'{image_split}/data')
+        self.annotations_file = os.path.join(root, f'raw/captions_{ann_split}2014.json')
+        self.transform = transform or DEFAULT_TRANSFORM_COCO
+        self.inner_dataset = dset.CocoCaptions(root=self.images_root, annFile=self.annotations_file,
+                                               transform=self.transform)
+
+    def _get_matching_filename(self, index):
+        return self.inner_dataset.coco.loadImgs(self.inner_dataset.ids[index])[0]["file_name"]
+
+    def _get_image(self, index):
+        image, _ = self.inner_dataset[index]
+        return image
+
+    def _get_caption(self, index):
+        image_index = index // 5
+        caption_inner_index = index % 5
+        _, captions = self.inner_dataset[image_index]
+        return captions[caption_inner_index]
+
+
+class ImageCOCODataset(COCODataset):
+    """
+    Dataset loader for COCO full datasets.
+    """
+
+    def __getitem__(self, index):
+        return self._get_image(index)
+
+    def __len__(self):
+        return len(self.inner_dataset)
+
+
+class CaptionCOCODataset(COCODataset):
+    """
+    Dataset loader for COCO full datasets.
+    """
+
+    def __getitem__(self, index):
+        return index, self._get_matching_filename(index // 5), self._get_caption(index)
+
+    def __len__(self):
+        return len(self.inner_dataset) * 5
+
+
+class ImageCaptionCOCODataset(COCODataset):
+    """
+    Dataset loader for COCO full datasets.
+    """
+
+    def __getitem__(self, index):
+        caption_index = index
+        image_index = index // 5
+        caption_inner_index = index % 5
+        positive_img, captions = self.inner_dataset[image_index]
+        caption = captions[caption_inner_index]
+        matching_filename = self._get_matching_filename(image_index)
+        return caption_index, image_index, matching_filename, positive_img, caption
+
+    def __len__(self):
+        return len(self.inner_dataset) * 5
 
 
 class Flickr30kDataset(data.Dataset):
@@ -128,7 +213,7 @@ class ImageConcatenatedCaptionsFlickr30kDataset(Flickr30kDataset):
         return filename, positive_img, captions_concat
 
     def __len__(self):
-        return 128 # self.images_length
+        return 128  # self.images_length
 
 
 from torch.utils.data.sampler import BatchSampler, RandomSampler, SequentialSampler
@@ -192,10 +277,10 @@ def get_concatenated_captions_image_data_loader(root, split_root, split, batch_s
 
 
 def get_captions_image_data_loader(root, split_root, split, batch_size=8, shuffle=False,
-                                   num_workers=1, batch_sampling=False, **kwargs):
+                                   num_workers=1, batch_sampling=False, dset='flickr', **kwargs):
     """Returns torch.utils.data.DataLoader for custom coco dataset."""
 
-    dataset = ImageCaptionFlickr30kDataset(root=root, split_root=split_root, split=split, **kwargs)
+    dataset = ImageCaptionFlickr30kDataset(root=root, split_root=split_root, split=split, **kwargs) if dset == 'flickr' else ImageCaptionCOCODataset(root=root, split=split, **kwargs)
 
     batch_sampler = None
 
@@ -224,10 +309,10 @@ def get_captions_image_data_loader(root, split_root, split, batch_size=8, shuffl
 
 
 def get_image_data_loader(root, split_root, split, batch_size=8, shuffle=False,
-                          num_workers=1, batch_sampling=False, **kwargs):
+                          num_workers=1, batch_sampling=False, dset='flickr', **kwargs):
     """Returns torch.utils.data.DataLoader for custom coco dataset."""
 
-    dataset = ImageFlickr30kDataset(root=root, split_root=split_root, split=split, **kwargs)
+    dataset = ImageFlickr30kDataset(root=root, split_root=split_root, split=split, **kwargs) if dset == 'flickr' else ImageCOCODataset(root=root, split=split, **kwargs)
 
     if 'force_transform_to_none' in kwargs:
         dataset.transform = None
@@ -245,10 +330,10 @@ def get_image_data_loader(root, split_root, split, batch_size=8, shuffle=False,
 
 
 def get_captions_data_loader(root, split_root, split, batch_size=8, shuffle=False,
-                             num_workers=1, batch_sampling=False, **kwargs):
+                             num_workers=1, batch_sampling=False, dset='flickr', **kwargs):
     """Returns torch.utils.data.DataLoader for custom coco dataset."""
 
-    dataset = CaptionFlickr30kDataset(root=root, split_root=split_root, split=split, **kwargs)
+    dataset = CaptionFlickr30kDataset(root=root, split_root=split_root, split=split, **kwargs) if dset == 'flickr' else CaptionCOCODataset(root=root, split=split, **kwargs)
     # Data loader
     data_loader = torch.utils.data.DataLoader(dataset=dataset,
                                               batch_size=batch_size,

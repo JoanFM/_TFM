@@ -101,7 +101,7 @@ def colored(
 
 def run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model, batch_size, root, split_root, split,
                     top_k_first_phase=None, top_ks=None, cache_query_image_slow_scores=None,
-                    dual_encoder_transform=DEFAULT_TRANSFORM):
+                    dual_encoder_transform=DEFAULT_TRANSFORM, dset='flickr'):
     """
     Runs evaluations of an ImageEncoder resulting from some training
 
@@ -149,7 +149,7 @@ def run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model, bat
     with torch.no_grad():
         image_data_loader = get_image_data_loader(root=root, split_root=split_root, split=split, batch_size=batch_size,
                                                   collate_fn=collate_images, shuffle=False,
-                                                  force_transform_to_none=True)
+                                                  force_transform_to_none=True, dset=dset if split != 'test' else 'flickr')
 
         all_image_embeddings = []
         image_filenames = []
@@ -172,7 +172,7 @@ def run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model, bat
         all_image_embeddings = torch.cat(all_image_embeddings)
 
         text_data_loader = get_captions_data_loader(root=root, split_root=split_root, split=split,
-                                                    batch_size=batch_size, shuffle=False, collate_fn=collate_captions)
+                                                    batch_size=batch_size, shuffle=False, collate_fn=collate_captions, dset=dset if split != 'test' else 'flickr')
 
         dot_products = []
         groundtruth_expected_image_filenames = []
@@ -417,7 +417,8 @@ def train(output_model_path: str,
           beta=1,
           reduction_in_loss='mean',
           cache_scores={'train': None, 'val': None, 'test': None},
-          dual_encoder_transform=DEFAULT_TRANSFORM
+          dual_encoder_transform=DEFAULT_TRANSFORM,
+          dset='flickr'
           ):
     """
     Train the model to have an image encoder that encodes into sparse embeddings matching the text encoder's outputs
@@ -500,7 +501,8 @@ def train(output_model_path: str,
                                                                num_workers=dataloader_num_worker,
                                                                batch_size=batch_size,
                                                                collate_fn=collate,
-                                                               batch_sampling=True)
+                                                               batch_sampling=True,
+                                                               dset=dset)
 
             val_data_loader = get_captions_image_data_loader(root=DATASET_ROOT_PATH,
                                                              split_root=DATASET_SPLIT_ROOT_PATH,
@@ -509,7 +511,8 @@ def train(output_model_path: str,
                                                              num_workers=dataloader_num_worker,
                                                              batch_size=batch_size,
                                                              collate_fn=collate,
-                                                             batch_sampling=True)
+                                                             batch_sampling=True,
+                                                             dset=dset)
 
             train_loss = []
             epoch_start = time.time()
@@ -624,12 +627,12 @@ def train(output_model_path: str,
                                                cache_query_image_slow_scores=cache_scores['test'])
             test_evals_epochs.append(test_evaluations)
 
-            val_evaluations = run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model,
-                                              batch_size, root=DATASET_ROOT_PATH,
-                                              split_root=DATASET_SPLIT_ROOT_PATH,
-                                              split='val',
-                                              cache_query_image_slow_scores=cache_scores['val'])
-            val_evals_epochs.append(val_evaluations)
+            # val_evaluations = run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model,
+            #                                   batch_size, root=DATASET_ROOT_PATH,
+            #                                   split_root=DATASET_SPLIT_ROOT_PATH,
+            #                                   split='val',
+            #                                   cache_query_image_slow_scores=cache_scores['val'])
+            # val_evals_epochs.append(val_evaluations)
 
             # train_evaluations = run_evaluations(image_encoder, text_encoder, vilt_model,
             #                                     batch_size, root=DATASET_ROOT_PATH,
@@ -640,20 +643,20 @@ def train(output_model_path: str,
 
             for key in test_evaluations.keys():
                 test_keys_evals_list = [d[key] for d in test_evals_epochs]
-                val_keys_evals_list = [d[key] for d in val_evals_epochs]
-                train_keys_evals_list = [d[key] for d in train_evals_epochs]
+                #val_keys_evals_list = [d[key] for d in val_evals_epochs]
+                #train_keys_evals_list = [d[key] for d in train_evals_epochs]
                 if len(test_keys_evals_list) > 0:
                     print(colored(
                         f'\n[{epoch}]\tBest epoch w.r.t evaluation {key} in test:\t{test_keys_evals_list.index(max(test_keys_evals_list))}',
                         'yellow'))
-                if len(val_keys_evals_list):
-                    print(colored(
-                        f'\n[{epoch}]\tBest epoch w.r.t evaluation {key} in validation:\t{val_keys_evals_list.index(max(val_keys_evals_list))}',
-                        'yellow'))
-                if len(train_keys_evals_list):
-                    print(colored(
-                        f'\n[{epoch}]\tBest epoch w.r.t evaluation {key} in train:\t{train_keys_evals_list.index(max(train_keys_evals_list))}',
-                        'yellow'))
+                # if len(val_keys_evals_list):
+                #     print(colored(
+                #         f'\n[{epoch}]\tBest epoch w.r.t evaluation {key} in validation:\t{val_keys_evals_list.index(max(val_keys_evals_list))}',
+                #         'yellow'))
+                # if len(train_keys_evals_list):
+                #     print(colored(
+                #         f'\n[{epoch}]\tBest epoch w.r.t evaluation {key} in train:\t{train_keys_evals_list.index(max(train_keys_evals_list))}',
+                #         'yellow'))
         epoch_bar.next()
 
 

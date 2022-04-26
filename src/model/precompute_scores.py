@@ -72,7 +72,7 @@ def _get_num_captions_in_partition(partition_to_compute, number_partitions, tota
 
 
 def precompute_scores(output_file_path: str, vilt_model_path: str = VILT_BASE_MODEL_LOAD_PATH, split: str = 'val',
-                      batch_size=4, number_partitions=1, partition_to_compute=0):
+                      batch_size=4, number_partitions=1, partition_to_compute=0, dset='flickr'):
     with torch.no_grad():
         if torch.cuda.is_available():
             dev = 'cuda'
@@ -89,11 +89,11 @@ def precompute_scores(output_file_path: str, vilt_model_path: str = VILT_BASE_MO
             text_data_loader = get_captions_data_loader(root=DATASET_ROOT_PATH, split_root=DATASET_SPLIT_ROOT_PATH,
                                                         split=split,
                                                         batch_size=1, collate_fn=collate_captions,
-                                                        shuffle=False)
+                                                        shuffle=False, dset=dset)
 
             image_data_loader = get_image_data_loader(root=DATASET_ROOT_PATH, split_root=DATASET_SPLIT_ROOT_PATH,
                                                       split=split, batch_size=batch_size, shuffle=False,
-                                                      collate_fn=collate_images, force_transform_to_none=True)
+                                                      collate_fn=collate_images, force_transform_to_none=True, dset=dset)
 
             total_num_captions = len(text_data_loader.dataset)
             total_num_images = len(image_data_loader.dataset)
@@ -145,7 +145,7 @@ def precompute_scores(output_file_path: str, vilt_model_path: str = VILT_BASE_MO
 
 def precompute_scores_inverted(output_file_path: str, vilt_model_path: str = VILT_BASE_MODEL_LOAD_PATH,
                                split: str = 'val',
-                               batch_size=4, number_partitions=1, partition_to_compute=0):
+                               batch_size=4, number_partitions=1, partition_to_compute=0, dset='flickr'):
     with torch.no_grad():
         if torch.cuda.is_available():
             dev = 'cuda'
@@ -162,11 +162,11 @@ def precompute_scores_inverted(output_file_path: str, vilt_model_path: str = VIL
             text_data_loader = get_captions_data_loader(root=DATASET_ROOT_PATH, split_root=DATASET_SPLIT_ROOT_PATH,
                                                         split=split,
                                                         batch_size=batch_size, collate_fn=collate_captions,
-                                                        shuffle=False)
+                                                        shuffle=False, dset=dset)
 
             image_data_loader = get_image_data_loader(root=DATASET_ROOT_PATH, split_root=DATASET_SPLIT_ROOT_PATH,
                                                       split=split, batch_size=1, shuffle=False,
-                                                      collate_fn=collate_images, force_transform_to_none=True)
+                                                      collate_fn=collate_images, force_transform_to_none=True, dset=dset)
 
             total_num_captions = len(text_data_loader.dataset)
             total_num_images = len(image_data_loader.dataset)
