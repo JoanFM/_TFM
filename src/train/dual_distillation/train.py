@@ -41,6 +41,11 @@ DATASET_ROOT_PATH = os.getenv('DATASET_ROOT_PATH', '/hdd/master/tfm/flickr30k_im
 # The root path where the flickr30k entities per split is kept
 DATASET_SPLIT_ROOT_PATH = os.getenv('DATASET_SPLIT_ROOT_PATH', '/hdd/master/tfm/flickr30k_images/flickr30k_entities')
 
+# The root path where the flickr30k dataset is found
+FLICKR_DATASET_ROOT_PATH = os.getenv('FLICKR_DATASET_ROOT_PATH', '/hdd/master/tfm/flickr30k_images')
+# The root path where the flickr30k entities per split is kept
+FLICKR_DATASET_SPLIT_ROOT_PATH = os.getenv('FLICKR_DATASET_SPLIT_ROOT_PATH', '/hdd/master/tfm/flickr30k_images/flickr30k_entities')
+
 l1_regularization_weight = 1e-3
 
 _ATTRIBUTES = {
@@ -423,6 +428,8 @@ def train(output_model_path: str,
     """
     Train the model to have an image encoder that encodes into sparse embeddings matching the text encoder's outputs
 
+    :param dset:
+    :param dual_encoder_transform:
     :param num_training_steps:
     :param num_warmup_steps:
     :param cache_scores:
@@ -486,10 +493,11 @@ def train(output_model_path: str,
     train_evals_epochs = []
 
     run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model,
-                    batch_size, root=DATASET_ROOT_PATH,
-                    split_root=DATASET_SPLIT_ROOT_PATH,
+                    batch_size, root=FLICKR_DATASET_ROOT_PATH,
+                    split_root=FLICKR_DATASET_SPLIT_ROOT_PATH,
                     split='test',
-                    cache_query_image_slow_scores=cache_scores['test'])
+                    cache_query_image_slow_scores=cache_scores['test'],
+                    dset=dset)
 
     with Bar('Epochs', max=num_epochs, check_tty=False) as epoch_bar:
 
@@ -624,7 +632,8 @@ def train(output_model_path: str,
                                                batch_size, root=DATASET_ROOT_PATH,
                                                split_root=DATASET_SPLIT_ROOT_PATH,
                                                split='test',
-                                               cache_query_image_slow_scores=cache_scores['test'])
+                                               cache_query_image_slow_scores=cache_scores['test'],
+                                               dset=dset)
             test_evals_epochs.append(test_evaluations)
 
             # val_evaluations = run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model,
@@ -672,7 +681,7 @@ def main_train(*args, **kwargs):
         word2vec_model_path=TEXT_WORD2_VEC_MODEL_PATH,
         image_encoder_backbone_model='resnet50',
         vilt_model_path=VILT_BASE_MODEL_LOAD_PATH,
-        batch_size=128,
+        batch_size=8,
         negative_batch_size=4,
         dataloader_num_worker=1,
         learning_rate=0.001,
@@ -680,7 +689,8 @@ def main_train(*args, **kwargs):
         temperature=10,
         beta=1,
         reduction_in_loss='mean',
-        cache_scores={'train': None, 'val': val_cache_scores, 'test': test_cache_scores}
+        cache_scores={'train': None, 'val': val_cache_scores, 'test': test_cache_scores},
+        dset='coco'
     )
 
 
@@ -696,15 +706,20 @@ def main_evaluate(*args, **kwargs):
         torch.load(os.path.join(cur_dir, '../../model/checkpoints/model-inter-401-final-image.pt'),
                    map_location=torch.device('cpu')))
     image_encoder.eval()
-    text_encoder = TextEncoder(model_path=TEXT_WORD2_VEC_MODEL_PATH)
+    text_tokenizer = TextTokenizer(word2vec_model_path=TEXT_WORD2_VEC_MODEL_PATH)
+    text_encoder = TextEncoder(gensim_model_vector_weights=torch.FloatTensor(text_tokenizer.gensim_model.vectors))
     text_encoder.load_state_dict(
         torch.load(os.path.join(cur_dir, '../../model/checkpoints/model-inter-401-final-text.pt'),
                    map_location=torch.device('cpu')))
     text_encoder.eval()
 
     vilt_model = get_vilt_model(load_path=VILT_BASE_MODEL_LOAD_PATH)
-    run_evaluations(image_encoder, text_encoder, vilt_model,
-                    8, root=DATASET_ROOT_PATH,
+    run_evaluations(image_encoder,
+                    text_encoder,
+                    text_tokenizer,
+                    vilt_model,
+                    8,
+                    root=DATASET_ROOT_PATH,
                     split_root=DATASET_SPLIT_ROOT_PATH,
                     split='test',
                     top_ks=[1],
@@ -734,4 +749,4 @@ def main_evaluate_clip(*args, **kwargs):
 if __name__ == '__main__':
     import sys
 
-    main_evaluate_clip(*sys.argv)
+    main_train(*sys.argv)

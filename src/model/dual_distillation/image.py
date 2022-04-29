@@ -27,7 +27,7 @@ class ImageEncoder(nn.Module):
     def pre_linear_dim(self):
         random_image_array = np.random.random((8, 3, 224, 224))
         content = torch.Tensor(random_image_array)
-        return self(content).shape[1]
+        return torch.flatten(self.model(content), 1).shape[1]
 
     def forward(self, x):
         x = self.model(x)
