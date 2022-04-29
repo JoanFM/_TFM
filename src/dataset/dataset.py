@@ -29,6 +29,18 @@ DEFAULT_TRANSFORM_COCO = torchvision.transforms.Compose([
 TO_TENSOR_TRANSFORM = torchvision.transforms.ToTensor()
 
 
+class OnlyCaptionsCocoCaptions(dset.CocoCaptions):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __getitem__(self, index: int):
+        id = self.ids[index]
+        image = None
+        target = self._load_target(id)
+
+        return image, target
+
+
 class COCODataset(data.Dataset):
     """
     Dataset loader for COCO full datasets.
@@ -78,6 +90,10 @@ class CaptionCOCODataset(COCODataset):
     """
     Dataset loader for COCO full datasets.
     """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.inner_dataset = OnlyCaptionsCocoCaptions(root=self.images_root, annFile=self.annotations_file,
+                                                      transform=self.transform)
 
     def __getitem__(self, index):
         return index, self._get_matching_filename(index // 5), self._get_caption(index)

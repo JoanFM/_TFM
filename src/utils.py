@@ -91,10 +91,10 @@ def get_model(vectorizer_path='/hdd/master/tfm/vectorizer_tokenizer_stop_words_a
              [test_dataset[i][1] for i in range(len(test_dataset))] + \
              [val_dataset[i][1] for i in range(len(val_dataset))]
 
-    vectorizer = CountVectorizer(tokenizer=spacy_tokenizer, stop_words='english')
-    vectorizer.fit(corpus)
-    with open(vectorizer_path, 'wb') as f:
-        pickle.dump(vectorizer, f)
+vectorizer = CountVectorizer(tokenizer=spacy_tokenizer, stop_words='english')
+vectorizer.fit(corpus)
+with open(vectorizer_path, 'wb') as f:
+    pickle.dump(vectorizer, f)
 
 
 def filter_vectorizers(vectorizer_path: str, indexer_path='/hdd/master/tfm/sparse_indexers_tmp_text_analyze'):
@@ -165,7 +165,7 @@ def create_filtered_datasets(vectorizer_path: str = '/hdd/master/tfm/vectorizer_
 
 if __name__ == '__main__':
     get_model(vectorizer_path='/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words.pkl')
-    build_inverted_index_text(vectorizer_path='/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words.pkl')
-    analyze_word_frequencies()
-    filter_vectorizers(vectorizer_path='/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words.pkl')
-    create_filtered_datasets(vectorizer_path='/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words.pkl')
+    # build_inverted_index_text(vectorizer_path='/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words.pkl')
+    # analyze_word_frequencies()
+    # filter_vectorizers(vectorizer_path='/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words.pkl')
+    # create_filtered_datasets(vectorizer_path='/hdd/master/tfm/vectorizer_tokenizer_stop_words_all_words.pkl')
