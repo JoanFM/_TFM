@@ -629,8 +629,9 @@ def train(output_model_path: str,
             test_evaluations = {}
             val_evaluations = {}
             test_evaluations = run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model,
-                                               batch_size, root=DATASET_ROOT_PATH,
-                                               split_root=DATASET_SPLIT_ROOT_PATH,
+                                               batch_size,
+                                               root=FLICKR_DATASET_ROOT_PATH,
+                                               split_root=FLICKR_DATASET_SPLIT_ROOT_PATH,
                                                split='test',
                                                cache_query_image_slow_scores=cache_scores['test'],
                                                dset=dset)
