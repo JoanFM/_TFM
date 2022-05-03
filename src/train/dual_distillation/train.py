@@ -694,7 +694,7 @@ def main_train(*args, **kwargs):
         beta=1,
         reduction_in_loss='mean',
         cache_scores={'train': None, 'val': val_cache_scores, 'test': test_cache_scores},
-        dset='coco'
+        dset='coco',
         clip_gradient=30.0,
     )
 
