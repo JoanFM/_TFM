@@ -17,7 +17,7 @@ class TextTokenizer(nn.Module):
     def __init__(
             self,
             word2vec_model_path='filtered_f30k_word2vec.model',
-            max_length_tokens=12,
+            max_length_tokens=16,
     ):
         super().__init__()
         self.gensim_model = KeyedVectors.load(word2vec_model_path)

@@ -33,9 +33,9 @@ train(
     alpha=1,
     beta=0,
     learning_rate=0.001,
-    num_warmup_steps=500, # this should be adjusted with the batch size, I was expecting to have around 2 epochs of
+    num_warmup_steps=5000, # this should be adjusted with the batch size, I was expecting to have around 2 epochs of
     # `warmup`
-    num_training_steps=500000, # this should set to num training steps
+    num_training_steps=20000, # this should set to num training steps
     dataloader_num_worker=1,
     temperature=10, # since beta 0 does not affect
     reduction_in_loss='mean',

@@ -423,7 +423,9 @@ def train(output_model_path: str,
           reduction_in_loss='mean',
           cache_scores={'train': None, 'val': None, 'test': None},
           dual_encoder_transform=DEFAULT_TRANSFORM,
-          dset='flickr'
+          dset='flickr',
+          clip_gradient=30.0,
+          weight_decay=0.0001
           ):
     """
     Train the model to have an image encoder that encodes into sparse embeddings matching the text encoder's outputs
@@ -479,7 +481,7 @@ def train(output_model_path: str,
         vilt_model.to(device)
 
     optimizer = torch.optim.Adam([{'params': image_encoder.parameters()}, {'params': text_encoder.parameters()}],
-                                 lr=learning_rate)
+                                 lr=learning_rate, weight_decay=weight_decay)
 
     lr_scheduler = transformers.get_cosine_with_hard_restarts_schedule_with_warmup(optimizer=optimizer,
                                                                                    num_warmup_steps=num_warmup_steps,
@@ -575,6 +577,7 @@ def train(output_model_path: str,
 
                     loss.backward()
                     train_loss.append(loss.item())
+                    #torch.nn.utils.clip_grad_norm_(image_encoder.parameters(), clip_gradient)
                     optimizer.step()
                     lr_scheduler.step()
 
@@ -692,6 +695,7 @@ def main_train(*args, **kwargs):
         reduction_in_loss='mean',
         cache_scores={'train': None, 'val': val_cache_scores, 'test': test_cache_scores},
         dset='coco'
+        clip_gradient=30.0,
     )
 
 
