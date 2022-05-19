@@ -577,7 +577,8 @@ def train(output_model_path: str,
 
                     loss.backward()
                     train_loss.append(loss.item())
-                    #torch.nn.utils.clip_grad_norm_(image_encoder.parameters(), clip_gradient)
+                    torch.nn.utils.clip_grad_norm_(image_encoder.parameters(), clip_gradient)
+                    torch.nn.utils.clip_grad_norm_(text_encoder.parameters(), clip_gradient)
                     optimizer.step()
                     lr_scheduler.step()
 
