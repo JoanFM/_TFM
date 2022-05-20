@@ -113,7 +113,7 @@ def get_word2vec_for_vocabulary(countvectorizer_path: str = 'coco_vectorizer.pkl
 
 
 if __name__ == '__main__':
-    countvectorizer_path = sys.argv[1] if len(sys.argv) > 1 else f'coco_vectorizer.pkl'
+    countvectorizer_path = sys.argv[1] if len(sys.argv) > 1 else f'coco_vectorizer_with_stop_words.pkl'
     original_word2vec = sys.argv[2] if len(sys.argv) > 2 else f'word2vec-google-news-300'
-    output_model_path = sys.argv[3] if len(sys.argv) > 3 else f'filtered_coco_word2vec.model'
+    output_model_path = sys.argv[3] if len(sys.argv) > 3 else f'filtered_coco_word2vec_with_stop_words.model'
     get_word2vec_for_vocabulary(countvectorizer_path, original_word2vec, output_model_path)
