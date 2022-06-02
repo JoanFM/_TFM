@@ -284,7 +284,14 @@ def validation_loop(image_encoder, text_encoder, text_tokenizer, vilt_model, dat
                 image_tensors.append(dual_encoder_transform(i))
 
             original_images = images
-            images_embeddings = image_encoder(torch.stack(image_tensors).to(device)).to(device)
+            print(f' len of image_tensors {image_tensors}')
+            deviced_tensors = torch.stack(image_tensors).to(device)
+            try:
+                print(f' deviced tensors device {deviced_tensors.get_device()}')
+            except:
+                pass
+
+            images_embeddings = image_encoder(deviced_tensors).to(device)
             tokenized_captions = text_tokenizer(captions).to(device)
             texts_embeddings = text_encoder(tokenized_captions).to(device)
             loss = compute_loss(images, captions, images_indices, caption_indices, matching_filenames, original_images,
@@ -467,7 +474,7 @@ def train(output_model_path: str,
         vilt_model = get_vilt_model(load_path=vilt_model_path)
 
     if torch.cuda.device_count() > 1:
-        print("Let's use", torch.cuda.device_count(), "GPUs!")
+        print("Let's use ", torch.cuda.device_count(), " GPUs!")
         # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
         image_encoder = torch.nn.DataParallel(image_encoder)
         text_encoder = torch.nn.DataParallel(text_encoder)
@@ -632,7 +639,10 @@ def train(output_model_path: str,
 
             test_evaluations = {}
             val_evaluations = {}
-            test_evaluations = run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model,
+            test_evaluations = run_evaluations(image_encoder,
+                                               text_encoder,
+                                               text_tokenizer,
+                                               vilt_model,
                                                batch_size,
                                                root=FLICKR_DATASET_ROOT_PATH,
                                                split_root=FLICKR_DATASET_SPLIT_ROOT_PATH,
