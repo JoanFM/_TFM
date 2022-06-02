@@ -168,7 +168,7 @@ def run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model, bat
                     pixel_bert_transformed_images.append(vilt_transform(i).to(device))
                     image_tensors.append(dual_encoder_transform(i))
 
-                print(f' len of image_tensors {image_tensors}')
+                print(f' len of image_tensors {len(image_tensors)}')
                 deviced_tensors = torch.stack(image_tensors).to(device)
                 try:
                     print(f' deviced tensors device {deviced_tensors.get_device()}')
@@ -291,7 +291,7 @@ def validation_loop(image_encoder, text_encoder, text_tokenizer, vilt_model, dat
                 image_tensors.append(dual_encoder_transform(i))
 
             original_images = images
-            print(f' len of image_tensors {image_tensors}')
+            print(f' len of image_tensors {len(image_tensors)}')
             deviced_tensors = torch.stack(image_tensors).to(device)
             try:
                 print(f' deviced tensors device {deviced_tensors.get_device()}')
