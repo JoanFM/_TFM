@@ -169,13 +169,12 @@ def run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model, bat
                     image_tensors.append(dual_encoder_transform(i))
 
                 print(f' len of image_tensors {len(image_tensors)}')
-                deviced_tensors = torch.stack(image_tensors).to(device)
-                try:
-                    print(f' deviced tensors device {deviced_tensors.get_device()}')
-                except:
-                    pass
-
-                images_embeddings = image_encoder(deviced_tensors)
+                if len(image_tensors) > 1:
+                    deviced_tensors = torch.stack(image_tensors).to(device)
+                    images_embeddings = image_encoder(deviced_tensors)
+                else:
+                    deviced_tensors = torch.stack([image_tensors[0], image_tensors[0]]).to(device)
+                    images_embeddings = image_encoder(deviced_tensors)[0]
                 all_image_embeddings.append(images_embeddings)
                 image_filenames.extend(filenames)
                 all_images_ids.extend(image_ids)
@@ -291,14 +290,13 @@ def validation_loop(image_encoder, text_encoder, text_tokenizer, vilt_model, dat
                 image_tensors.append(dual_encoder_transform(i))
 
             original_images = images
-            print(f' len of image_tensors {len(image_tensors)}')
-            deviced_tensors = torch.stack(image_tensors).to(device)
-            try:
-                print(f' deviced tensors device {deviced_tensors.get_device()}')
-            except:
-                pass
-
-            images_embeddings = image_encoder(deviced_tensors).to(device)
+            print(f' val-len of image_tensors {len(image_tensors)}')
+            if len(image_tensors) > 1:
+                deviced_tensors = torch.stack(image_tensors).to(device)
+                images_embeddings = image_encoder(deviced_tensors)
+            else:
+                deviced_tensors = torch.stack([image_tensors[0], image_tensors[0]]).to(device)
+                images_embeddings = image_encoder(deviced_tensors)[0]
             tokenized_captions = text_tokenizer(captions).to(device)
             texts_embeddings = text_encoder(tokenized_captions).to(device)
             loss = compute_loss(images, captions, images_indices, caption_indices, matching_filenames, original_images,
