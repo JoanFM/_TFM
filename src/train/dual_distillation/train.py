@@ -123,6 +123,7 @@ def run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model, bat
     :param top_ks: The top_ks parameters to run evaluation on
     :return:
     """
+    print(f' Running evaluation on "{split}"')
     if top_ks is None:
         top_ks = [1, 5, 10, 50, 100, 500]
     if top_k_first_phase is None:
@@ -234,7 +235,7 @@ def run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model, bat
                     retrieved_image_filenames.append(resulting_filenames)
                     # print(f' Result: "{query}": {resulting_filenames}')
                     query_bar.next()
-
+            print(f' Evaluation results on {split} for first_phase_top_k {first_phase_top_k}')
             t2i_evaluations = evaluate(['recall', 'reciprocal_rank'], retrieved_image_filenames,
                                        groundtruth_expected_image_filenames,
                                        top_ks,
@@ -259,6 +260,7 @@ def validation_loop(image_encoder, text_encoder, text_tokenizer, vilt_model, dat
 
     :return: The validation loss
     """
+    print(f' Running validation')
     if torch.cuda.is_available():
         dev = 'cuda'
     else:
