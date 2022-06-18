@@ -16,7 +16,7 @@ from src.model.vilt_model import get_vilt_model
 from vilt.transforms.pixelbert import pixelbert_transform
 
 from src.dataset import get_captions_image_data_loader, get_image_data_loader, get_captions_data_loader
-from src.dataset.dataset import DEFAULT_TRANSFORM
+from src.dataset.dataset import DEFAULT_TRANSFORM, DEFAULT_TRAIN_TRANSFORM
 from src.evaluate import evaluate
 import transformers
 
@@ -296,17 +296,14 @@ def validation_loop(image_encoder, text_encoder, text_tokenizer, vilt_model, dat
             if len(image_tensors) > 1:
                 deviced_tensors = torch.stack(image_tensors).to(device)
                 images_embeddings = image_encoder(deviced_tensors)
-            else:
-                deviced_tensors = torch.stack([image_tensors[0], image_tensors[0]]).to(device)
-                images_embeddings = image_encoder(deviced_tensors)[0]
-            tokenized_captions = text_tokenizer(captions).to(device)
-            texts_embeddings = text_encoder(tokenized_captions).to(device)
-            loss = compute_loss(images, captions, images_indices, caption_indices, matching_filenames, original_images,
-                                vilt_model, images_embeddings,
-                                texts_embeddings,
-                                negative_batch_size, temperature, alpha, beta, reduction_in_loss,
-                                cache_query_image_slow_scores)
-            val_loss.append(loss.item())
+                tokenized_captions = text_tokenizer(captions).to(device)
+                texts_embeddings = text_encoder(tokenized_captions).to(device)
+                loss = compute_loss(images, captions, images_indices, caption_indices, matching_filenames, original_images,
+                                    vilt_model, images_embeddings,
+                                    texts_embeddings,
+                                    negative_batch_size, temperature, alpha, beta, reduction_in_loss,
+                                    cache_query_image_slow_scores)
+                val_loss.append(loss.item())
 
     return val_loss
 
@@ -435,7 +432,7 @@ def train(output_model_path: str,
           alpha=0.1,
           beta=1,
           reduction_in_loss='mean',
-          cache_scores={'train': None, 'val': None, 'test': None},
+          cache_scores={'ººtrain': None, 'val': None, 'test': None},
           dual_encoder_transform=DEFAULT_TRANSFORM,
           dset='flickr',
           clip_gradient=30.0,
@@ -510,6 +507,7 @@ def train(output_model_path: str,
 
     run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model,
                     batch_size, root=FLICKR_DATASET_ROOT_PATH,
+                    dual_encoder_transform=DEFAULT_TRANSFORM,
                     split_root=FLICKR_DATASET_SPLIT_ROOT_PATH,
                     split='test',
                     cache_query_image_slow_scores=cache_scores['test'],
@@ -606,7 +604,7 @@ def train(output_model_path: str,
                         os.environ['PRINT_DOT_PRODUCTS'] = 'False'
                         val_loss = validation_loop(image_encoder, text_encoder, text_tokenizer, vilt_model, val_data_loader,
                                                    negative_batch_size, temperature, alpha, beta, reduction_in_loss,
-                                                   cache_scores['val'])
+                                                   cache_scores['val'], dual_encoder_transform=DEFAULT_TRANSFORM)
                         print(colored(
                             f'\n[{batch_id}]\tvalidation loss:\t{np.mean(np.array(val_loss))}\ttime elapsed:\t{time.time() - time_start} s',
                             'yellow'))
@@ -625,7 +623,7 @@ def train(output_model_path: str,
                 os.environ['PRINT_DOT_PRODUCTS'] = 'False'
                 val_loss = validation_loop(image_encoder, text_encoder, text_tokenizer, vilt_model, val_data_loader,
                                            negative_batch_size, temperature, alpha, beta, reduction_in_loss,
-                                           cache_scores['val'])
+                                           cache_scores['val'], dual_encoder_transform=DEFAULT_TRANSFORM,)
                 val_losses_epochs.append(np.mean(np.array(val_loss)))
                 train_losses_epochs.append(np.mean(np.array(train_loss)))
                 print(colored(
@@ -655,7 +653,8 @@ def train(output_model_path: str,
                                                split_root=FLICKR_DATASET_SPLIT_ROOT_PATH,
                                                split='test',
                                                cache_query_image_slow_scores=cache_scores['test'],
-                                               dset=dset)
+                                               dset=dset,
+                                               dual_encoder_transform=DEFAULT_TRANSFORM)
             test_evals_epochs.append(test_evaluations)
 
             # val_evaluations = run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model,
