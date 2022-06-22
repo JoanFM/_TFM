@@ -13,7 +13,6 @@ cur_dir = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_TRANSFORM = torchvision.transforms.Compose([
     torchvision.transforms.ToTensor(),
     torchvision.transforms.CenterCrop((224, 224)),
-    torchvision.transforms.RandomHorizontalFlip(p=0.5),
     torchvision.transforms.Normalize(
         mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225],
@@ -22,7 +21,8 @@ DEFAULT_TRANSFORM = torchvision.transforms.Compose([
 
 DEFAULT_TRAIN_TRANSFORM = torchvision.transforms.Compose([
     torchvision.transforms.ToTensor(),
-    torchvision.transforms.RandomResizedCrop(size=(224, 224), scale=(0.08, 1.0), ratio=(3. / 4., 4. / 3.)),
+    torchvision.transforms.RandomResizedCrop(size=(224, 224), scale=(0.2, 1.0), ratio=(3. / 4., 4. / 3.)),
+    torchvision.transforms.RandomHorizontalFlip(p=0.5),
     torchvision.transforms.Normalize(
         mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225],

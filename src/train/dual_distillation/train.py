@@ -433,7 +433,7 @@ def train(output_model_path: str,
           beta=1,
           reduction_in_loss='mean',
           cache_scores={'ººtrain': None, 'val': None, 'test': None},
-          dual_encoder_transform=DEFAULT_TRANSFORM,
+          dual_encoder_transform=DEFAULT_TRAIN_TRANSFORM,
           dset='flickr',
           clip_gradient=30.0,
           weight_decay=0.0001
