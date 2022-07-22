@@ -110,6 +110,7 @@ def run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model, bat
     """
     Runs evaluations of an ImageEncoder resulting from some training
 
+    :param text_tokenizer:
     :param dual_encoder_transform:
     :param cache_query_image_slow_scores:
     :param top_k_first_phase:
@@ -161,6 +162,7 @@ def run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model, bat
         image_filenames = []
         pixel_bert_transformed_images = []
         all_images_ids = []
+        start_building_index_time = time.time()
         with Bar(f'Computing the embedding of all the images', check_tty=False,
                  max=len(image_data_loader)) as image_embedding_bar:
             for batch_id, (image_ids, filenames, images) in enumerate(image_data_loader):
@@ -183,6 +185,9 @@ def run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model, bat
 
         all_image_embeddings = torch.cat(all_image_embeddings)
 
+        end_building_index_time = time.time()
+        print(f' Time building Index: {end_building_index_time - start_building_index_time}s')
+
         text_data_loader = get_captions_data_loader(root=root, split_root=split_root, split=split,
                                                     batch_size=batch_size, shuffle=False, collate_fn=collate_captions, dset=dset if split != 'test' else 'flickr')
 
@@ -193,7 +198,10 @@ def run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model, bat
         with Bar(f'Computing dot products for every query', check_tty=False,
                  max=len(text_data_loader)) as dot_prod_bar:
             for batch_id, (caption_ids, filenames, captions) in enumerate(text_data_loader):
-                tokenized_captions = text_tokenizer(captions).to(device)
+                if text_tokenizer is not None:
+                    tokenized_captions = text_tokenizer(captions).to(device)
+                else:
+                    tokenized_captions = captions
                 texts_embeddings = text_encoder(tokenized_captions).to(device)
                 d_product = texts_embeddings.matmul(all_image_embeddings.T)
                 dot_products.append(d_product)
@@ -213,6 +221,7 @@ def run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model, bat
         assert len(groundtruth_expected_image_filenames) == len(queries)
 
         for first_phase_top_k in top_k_first_phase:
+            start_retrieving_time = time.time()
             retrieved_image_filenames = []
             with Bar(f'Second phase query for first_phase {first_phase_top_k}', check_tty=False,
                      max=len(queries)) as query_bar:
@@ -235,6 +244,8 @@ def run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model, bat
                     retrieved_image_filenames.append(resulting_filenames)
                     # print(f' Result: "{query}": {resulting_filenames}')
                     query_bar.next()
+            end_retrieving_time = time.time()
+            print(f' With first_phase_top_k {first_phase_top_k}. Time retrieving: {end_retrieving_time - start_retrieving_time}s')
             print(f' Evaluation results on {split} for first_phase_top_k {first_phase_top_k}')
             t2i_evaluations = evaluate(['recall', 'reciprocal_rank'], retrieved_image_filenames,
                                        groundtruth_expected_image_filenames,
@@ -744,8 +755,8 @@ def main_evaluate(*args, **kwargs):
                     root=DATASET_ROOT_PATH,
                     split_root=DATASET_SPLIT_ROOT_PATH,
                     split='test',
-                    top_ks=[1],
-                    top_k_first_phase=[1],
+                    top_ks=[1, 5, 10, 50],
+                    top_k_first_phase=[1, 5, 10, 50],
                     cache_query_image_slow_scores=test_cache_scores)
 
 
@@ -759,8 +770,13 @@ def main_evaluate_clip(*args, **kwargs):
     test_cache_scores = CachedScores(os.path.join(cur_dir, '../../model/slow_scores/test.th'))
     image_encoder = CLIPImageEncoder()
     text_encoder = CLIPTextEncoder()
-    run_evaluations(image_encoder, text_encoder, None,
-                    8, root=DATASET_ROOT_PATH,
+    vilt_model = get_vilt_model(load_path=VILT_BASE_MODEL_LOAD_PATH)
+    run_evaluations(image_encoder,
+                    text_encoder,
+                    None,
+                    vilt_model,
+                    8,
+                    root=DATASET_ROOT_PATH,
                     split_root=DATASET_SPLIT_ROOT_PATH,
                     split='test',
                     top_ks=[1, 5, 10, 50],
@@ -771,4 +787,4 @@ def main_evaluate_clip(*args, **kwargs):
 if __name__ == '__main__':
     import sys
 
-    main_train(*sys.argv)
+    main_evaluate(*sys.argv)
