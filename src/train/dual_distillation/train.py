@@ -5,7 +5,7 @@ import random
 import copy
 import numpy as np
 import math
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 from progress.bar import Bar
 
@@ -44,7 +44,8 @@ DATASET_SPLIT_ROOT_PATH = os.getenv('DATASET_SPLIT_ROOT_PATH', '/hdd/master/tfm/
 # The root path where the flickr30k dataset is found
 FLICKR_DATASET_ROOT_PATH = os.getenv('FLICKR_DATASET_ROOT_PATH', '/hdd/master/tfm/flickr30k_images')
 # The root path where the flickr30k entities per split is kept
-FLICKR_DATASET_SPLIT_ROOT_PATH = os.getenv('FLICKR_DATASET_SPLIT_ROOT_PATH', '/hdd/master/tfm/flickr30k_images/flickr30k_entities')
+FLICKR_DATASET_SPLIT_ROOT_PATH = os.getenv('FLICKR_DATASET_SPLIT_ROOT_PATH',
+                                           '/hdd/master/tfm/flickr30k_images/flickr30k_entities')
 
 l1_regularization_weight = 1e-3
 
@@ -104,6 +105,44 @@ def colored(
     return text
 
 
+def build_image_embeddings(image_encoder, image_data_loader, dual_encoder_transform):
+    if torch.cuda.is_available():
+        dev = 'cuda'
+    else:
+        dev = 'cpu'
+    device = torch.device(dev)
+    all_image_embeddings = []
+    image_filenames = []
+    pixel_bert_transformed_images = []
+    all_images_ids = []
+    start_building_index_time = time.time()
+    with Bar(f'Computing the embedding of all the images', check_tty=False,
+             max=len(image_data_loader)) as image_embedding_bar:
+        for batch_id, (image_ids, filenames, images) in enumerate(image_data_loader):
+            image_tensors = []
+            for i in images:
+                pixel_bert_transformed_images.append(vilt_transform(i).to(device))
+                image_tensors.append(dual_encoder_transform(i))
+
+            print(f' len of image_tensors {len(image_tensors)}')
+            if len(image_tensors) > 1:
+                deviced_tensors = torch.stack(image_tensors).to(device)
+                images_embeddings = image_encoder(deviced_tensors)
+            else:
+                deviced_tensors = torch.stack([image_tensors[0], image_tensors[0]]).to(device)
+                images_embeddings = image_encoder(deviced_tensors)[0]
+            all_image_embeddings.append(images_embeddings)
+            image_filenames.extend(filenames)
+            all_images_ids.extend(image_ids)
+            image_embedding_bar.next()
+
+    all_image_embeddings = torch.cat(all_image_embeddings)
+
+    end_building_index_time = time.time()
+    print(f' Time building Index: {end_building_index_time - start_building_index_time}s')
+    return all_image_embeddings, image_filenames, pixel_bert_transformed_images, all_images_ids
+
+
 def run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model, batch_size, root, split_root, split,
                     top_k_first_phase=None, top_ks=None, cache_query_image_slow_scores=None,
                     dual_encoder_transform=DEFAULT_TRANSFORM, dset='flickr'):
@@ -156,40 +195,15 @@ def run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model, bat
     with torch.no_grad():
         image_data_loader = get_image_data_loader(root=root, split_root=split_root, split=split, batch_size=batch_size,
                                                   collate_fn=collate_images, shuffle=False,
-                                                  force_transform_to_none=True, dset=dset if split != 'test' else 'flickr')
+                                                  force_transform_to_none=True,
+                                                  dset=dset if split != 'test' else 'flickr')
 
-        all_image_embeddings = []
-        image_filenames = []
-        pixel_bert_transformed_images = []
-        all_images_ids = []
-        start_building_index_time = time.time()
-        with Bar(f'Computing the embedding of all the images', check_tty=False,
-                 max=len(image_data_loader)) as image_embedding_bar:
-            for batch_id, (image_ids, filenames, images) in enumerate(image_data_loader):
-                image_tensors = []
-                for i in images:
-                    pixel_bert_transformed_images.append(vilt_transform(i).to(device))
-                    image_tensors.append(dual_encoder_transform(i))
-
-                print(f' len of image_tensors {len(image_tensors)}')
-                if len(image_tensors) > 1:
-                    deviced_tensors = torch.stack(image_tensors).to(device)
-                    images_embeddings = image_encoder(deviced_tensors)
-                else:
-                    deviced_tensors = torch.stack([image_tensors[0], image_tensors[0]]).to(device)
-                    images_embeddings = image_encoder(deviced_tensors)[0]
-                all_image_embeddings.append(images_embeddings)
-                image_filenames.extend(filenames)
-                all_images_ids.extend(image_ids)
-                image_embedding_bar.next()
-
-        all_image_embeddings = torch.cat(all_image_embeddings)
-
-        end_building_index_time = time.time()
-        print(f' Time building Index: {end_building_index_time - start_building_index_time}s')
+        all_image_embeddings, image_filenames, pixel_bert_transformed_images, all_images_ids = build_image_embeddings(
+            image_encoder, image_data_loader, dual_encoder_transform)
 
         text_data_loader = get_captions_data_loader(root=root, split_root=split_root, split=split,
-                                                    batch_size=batch_size, shuffle=False, collate_fn=collate_captions, dset=dset if split != 'test' else 'flickr')
+                                                    batch_size=batch_size, shuffle=False, collate_fn=collate_captions,
+                                                    dset=dset if split != 'test' else 'flickr')
 
         dot_products = []
         groundtruth_expected_image_filenames = []
@@ -209,10 +223,6 @@ def run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model, bat
                     groundtruth_expected_image_filenames.append([filename])
                 queries.extend(captions)
                 queries_ids.extend(caption_ids)
-                # for q, f, d in zip(captions, filenames, d_product):
-                #     list_scores = d.cpu().detach().numpy().tolist()
-                #     print(f' Expected: "{q}": {f} with {sorted(list_scores, reverse=True)}')
-
                 dot_prod_bar.next()
         dot_products = torch.cat(dot_products)
         assert dot_products.shape[0] == len(groundtruth_expected_image_filenames)  # 1 matching filename for caption
@@ -245,7 +255,8 @@ def run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model, bat
                     # print(f' Result: "{query}": {resulting_filenames}')
                     query_bar.next()
             end_retrieving_time = time.time()
-            print(f' With first_phase_top_k {first_phase_top_k}. Time retrieving: {end_retrieving_time - start_retrieving_time}s')
+            print(
+                f' With first_phase_top_k {first_phase_top_k}. Time retrieving: {end_retrieving_time - start_retrieving_time}s')
             print(f' Evaluation results on {split} for first_phase_top_k {first_phase_top_k}')
             t2i_evaluations = evaluate(['recall', 'reciprocal_rank'], retrieved_image_filenames,
                                        groundtruth_expected_image_filenames,
@@ -255,7 +266,8 @@ def run_evaluations(image_encoder, text_encoder, text_tokenizer, vilt_model, bat
         return t2i_evaluations
 
 
-def validation_loop(image_encoder, text_encoder, text_tokenizer, vilt_model, dataloader, negative_batch_size, temperature, alpha, beta,
+def validation_loop(image_encoder, text_encoder, text_tokenizer, vilt_model, dataloader, negative_batch_size,
+                    temperature, alpha, beta,
                     reduction_in_loss, cache_query_image_slow_scores, dual_encoder_transform=DEFAULT_TRANSFORM):
     """
     Runs a loop to compute the validation loss
@@ -309,7 +321,8 @@ def validation_loop(image_encoder, text_encoder, text_tokenizer, vilt_model, dat
                 images_embeddings = image_encoder(deviced_tensors)
                 tokenized_captions = text_tokenizer(captions).to(device)
                 texts_embeddings = text_encoder(tokenized_captions).to(device)
-                loss = compute_loss(images, captions, images_indices, caption_indices, matching_filenames, original_images,
+                loss = compute_loss(images, captions, images_indices, caption_indices, matching_filenames,
+                                    original_images,
                                     vilt_model, images_embeddings,
                                     texts_embeddings,
                                     negative_batch_size, temperature, alpha, beta, reduction_in_loss,
@@ -452,6 +465,8 @@ def train(output_model_path: str,
     """
     Train the model to have an image encoder that encodes into sparse embeddings matching the text encoder's outputs
 
+    :param weight_decay:
+    :param clip_gradient:
     :param dset:
     :param dual_encoder_transform:
     :param num_training_steps:
@@ -613,7 +628,8 @@ def train(output_model_path: str,
                         time_start = time.time()
                     if batch_id % (math.ceil(len(train_data_loader.dataset) / batch_size) / 4) == 0 and batch_id != 0:
                         os.environ['PRINT_DOT_PRODUCTS'] = 'False'
-                        val_loss = validation_loop(image_encoder, text_encoder, text_tokenizer, vilt_model, val_data_loader,
+                        val_loss = validation_loop(image_encoder, text_encoder, text_tokenizer, vilt_model,
+                                                   val_data_loader,
                                                    negative_batch_size, temperature, alpha, beta, reduction_in_loss,
                                                    cache_scores['val'], dual_encoder_transform=DEFAULT_TRANSFORM)
                         print(colored(
@@ -634,7 +650,7 @@ def train(output_model_path: str,
                 os.environ['PRINT_DOT_PRODUCTS'] = 'False'
                 val_loss = validation_loop(image_encoder, text_encoder, text_tokenizer, vilt_model, val_data_loader,
                                            negative_batch_size, temperature, alpha, beta, reduction_in_loss,
-                                           cache_scores['val'], dual_encoder_transform=DEFAULT_TRANSFORM,)
+                                           cache_scores['val'], dual_encoder_transform=DEFAULT_TRANSFORM, )
                 val_losses_epochs.append(np.mean(np.array(val_loss)))
                 train_losses_epochs.append(np.mean(np.array(train_loss)))
                 print(colored(
@@ -684,8 +700,8 @@ def train(output_model_path: str,
 
             for key in test_evaluations.keys():
                 test_keys_evals_list = [d[key] for d in test_evals_epochs]
-                #val_keys_evals_list = [d[key] for d in val_evals_epochs]
-                #train_keys_evals_list = [d[key] for d in train_evals_epochs]
+                # val_keys_evals_list = [d[key] for d in val_evals_epochs]
+                # train_keys_evals_list = [d[key] for d in train_evals_epochs]
                 if len(test_keys_evals_list) > 0:
                     print(colored(
                         f'\n[{epoch}]\tBest epoch w.r.t evaluation {key} in test:\t{test_keys_evals_list.index(max(test_keys_evals_list))}',
@@ -699,6 +715,81 @@ def train(output_model_path: str,
                 #         f'\n[{epoch}]\tBest epoch w.r.t evaluation {key} in train:\t{train_keys_evals_list.index(max(train_keys_evals_list))}',
                 #         'yellow'))
         epoch_bar.next()
+
+
+def get_qualitative_results(queries, image_encoder, text_encoder, text_tokenizer, vilt_model, batch_size, root,
+                            split_root,
+                            split,
+                            top_k_first_phase=None, top_k=None,
+                            dual_encoder_transform=DEFAULT_TRANSFORM, dset='flickr'):
+    print(f' Getting qualitative results on "{split}"')
+    if top_k is None:
+        top_k = 5
+    if top_k_first_phase is None:
+        top_k_first_phase = 50
+    if torch.cuda.is_available():
+        dev = 'cuda'
+    else:
+        dev = 'cpu'
+    device = torch.device(dev)
+    try:
+        if isinstance(image_encoder, torch.nn.DataParallel):
+            image_encoder.train(False)
+            image_encoder.module.common_space_embedding.train(False)
+        else:
+            image_encoder.train(False)
+            image_encoder.common_space_embedding.train(False)
+        if isinstance(text_encoder, torch.nn.DataParallel):
+            text_encoder.train(False)
+            text_encoder.module.word_embd.train(False)
+            text_encoder.module.fc1.train(False)
+            text_encoder.module.fc2.train(False)
+        else:
+            text_encoder.train(False)
+            text_encoder.word_embd.train(False)
+            text_encoder.fc1.train(False)
+            text_encoder.fc2.train(False)
+    except:
+        pass
+
+    with torch.no_grad():
+        image_data_loader = get_image_data_loader(root=root, split_root=split_root, split=split, batch_size=batch_size,
+                                                  collate_fn=collate_images, shuffle=False,
+                                                  force_transform_to_none=True,
+                                                  dset=dset if split != 'test' else 'flickr')
+
+        all_image_embeddings, image_filenames, pixel_bert_transformed_images, all_images_ids = build_image_embeddings(
+            image_encoder, image_data_loader, dual_encoder_transform)
+
+        if text_tokenizer is not None:
+            tokenized_captions = text_tokenizer(queries).to(device)
+        else:
+            tokenized_captions = queries
+        texts_embeddings = text_encoder(tokenized_captions).to(device)
+        d_product = texts_embeddings.matmul(all_image_embeddings.T)
+        dot_products = torch.cat([d_product])
+        start_retrieving_time = time.time()
+        retrieved_image_filenames = []
+        for i, (query, dot_prod) in enumerate(zip(queries, dot_products)):
+            list_scores = dot_prod.cpu().detach().numpy().tolist()
+            assert len(list_scores) == len(pixel_bert_transformed_images)
+            sorted_images_indices = [i for _, i in
+                                     sorted(zip(list_scores, range(len(pixel_bert_transformed_images))),
+                                            reverse=True)]
+            candidate_images_indices = sorted_images_indices[:top_k_first_phase]
+            non_candidate_images_indices = sorted_images_indices[top_k_first_phase:]
+            candidate_images = [pixel_bert_transformed_images[i] for i in candidate_images_indices]
+            scores = vilt_model.rank_query_vs_images(query, candidate_images)
+            best_indices = [i for _, i in sorted(zip(scores, range(len(scores))), reverse=True)]
+            resulting_filenames = [image_filenames[candidate_images_indices[i]] for i in best_indices]
+            resulting_filenames.extend([image_filenames[i] for i in non_candidate_images_indices])
+            retrieved_image_filenames.append(resulting_filenames)
+            print(f' Result: "{query}": {resulting_filenames[:top_k]}')
+        end_retrieving_time = time.time()
+        print(
+            f' With first_phase_top_k {top_k_first_phase}. Time retrieving: {end_retrieving_time - start_retrieving_time}s')
+
+        return retrieved_image_filenames
 
 
 def main_train(*args, **kwargs):
@@ -784,7 +875,48 @@ def main_evaluate_clip(*args, **kwargs):
                     cache_query_image_slow_scores=test_cache_scores)
 
 
+def main_display(*args, **kwargs):
+    import os
+    from src.model.dual_distillation.clip_image import CLIPImageEncoder
+    from src.model.dual_distillation.clip_text import CLIPTextEncoder
+    os.path.dirname(os.path.abspath(__file__))
+    IMAGE_BASE_PATH = f'/hdd/master/tfm/flickr30k_images/flickr30k-images'
+
+    image_encoder = CLIPImageEncoder()
+    text_encoder = CLIPTextEncoder()
+    vilt_model = get_vilt_model(load_path=VILT_BASE_MODEL_LOAD_PATH)
+    text_tokenizer = None
+    queries = [' A man with an orange hat looking funny']
+
+    def display(results: List[List[str]]):
+        from PIL import Image
+        import matplotlib.pyplot as plt
+        for res in results:
+            fig = plt.figure(figsize=(8, 8))
+            columns = 2
+            rows = 2
+            for i, file in enumerate(res[:4]):
+                img = Image.open(open(f'{IMAGE_BASE_PATH}/{file}', 'rb'))
+                sublot = fig.add_subplot(rows, columns, i + 1)
+                sublot.title.set_text(f'{file}')
+                plt.imshow(img)
+            plt.show()
+
+    results = get_qualitative_results(queries, image_encoder,
+                                      text_encoder,
+                                      text_tokenizer,
+                                      vilt_model,
+                                      8,
+                                      root=DATASET_ROOT_PATH,
+                                      split_root=DATASET_SPLIT_ROOT_PATH,
+                                      split='test',
+                                      top_k=5,
+                                      top_k_first_phase=50)
+
+    display(results)
+
+
 if __name__ == '__main__':
     import sys
 
-    main_evaluate(*sys.argv)
+    main_display(*sys.argv)
