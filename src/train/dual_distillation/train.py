@@ -32,7 +32,7 @@ log_softmax_dim_1 = torch.nn.LogSoftmax(dim=1)
 # The base directory where models are stored after every epoch
 IMAGE_EMBEDDING_BASE_PATH = os.getenv('IMAGE_EMBEDDING_BASE_PATH', '/hdd/master/tfm/output-image-encoders')
 # The word2vec model base
-TEXT_WORD2_VEC_MODEL_PATH = os.getenv('TEXT_WORD2_VEC_MODEL_PATH', 'filtered_f30k_word2vec.model')
+TEXT_WORD2_VEC_MODEL_PATH = os.getenv('TEXT_WORD2_VEC_MODEL_PATH', 'filtered_coco_word2vec_with_stop_words.model')
 
 VILT_BASE_MODEL_LOAD_PATH = os.getenv('VILT_BASE_MODEL_LOAD_PATH', 'vilt_irtr_f30k.ckpt')
 
@@ -859,6 +859,7 @@ def main_evaluate_clip(*args, **kwargs):
     os.path.dirname(os.path.abspath(__file__))
 
     test_cache_scores = CachedScores(os.path.join(cur_dir, '../../model/slow_scores/test.th'))
+
     image_encoder = CLIPImageEncoder()
     text_encoder = CLIPTextEncoder()
     vilt_model = get_vilt_model(load_path=VILT_BASE_MODEL_LOAD_PATH)
@@ -882,24 +883,53 @@ def main_display(*args, **kwargs):
     os.path.dirname(os.path.abspath(__file__))
     IMAGE_BASE_PATH = f'/hdd/master/tfm/flickr30k_images/flickr30k-images'
 
-    image_encoder = CLIPImageEncoder()
-    text_encoder = CLIPTextEncoder()
-    vilt_model = get_vilt_model(load_path=VILT_BASE_MODEL_LOAD_PATH)
-    text_tokenizer = None
-    queries = [' A man with an orange hat looking funny']
+    image_encoder = ImageEncoder(backbone_model='resnet50')
+    image_state_dict = torch.load(os.path.join(cur_dir, '../../../models/results/results_512_01_30_0/model-inter-16-final-image.pt'),
+                            map_location=torch.device('cpu'))
+    # create new OrderedDict that does not contain `module.`
+    from collections import OrderedDict
+    new_state_dict = OrderedDict()
+    for k, v in image_state_dict.items():
+        name = k[7:] # remove `module.`
+        new_state_dict[name] = v
+    image_encoder.load_state_dict(new_state_dict)
+    image_encoder.eval()
+    text_tokenizer = TextTokenizer(word2vec_model_path=TEXT_WORD2_VEC_MODEL_PATH)
+    text_encoder = TextEncoder(gensim_model_vector_weights=torch.FloatTensor(text_tokenizer.gensim_model.vectors))
+    text_state_dict = torch.load(os.path.join(cur_dir, '../../../models/results/results_512_01_30_0/model-inter-16-final-text.pt'),
+                                  map_location=torch.device('cpu'))
+    # create new OrderedDict that does not contain `module.`
+    from collections import OrderedDict
+    new_state_dict = OrderedDict()
+    for k, v in text_state_dict.items():
+        name = k[7:] # remove `module.`
+        new_state_dict[name] = v
+    text_encoder.load_state_dict(new_state_dict)
+    text_encoder.eval()
 
-    def display(results: List[List[str]]):
+    #image_encoder = CLIPImageEncoder()
+    #text_encoder = CLIPTextEncoder()
+    vilt_model = get_vilt_model(load_path=VILT_BASE_MODEL_LOAD_PATH)
+    #text_tokenizer = None
+    queries = ['A man in a white shirt and shorts is running and jumping in the grass .', 'One toddler takes away the mouth piece of the other which makes him cry .', 'Two people with silly disguises at Christmas time']
+
+    def display(queries, results: List[List[str]]):
         from PIL import Image
         import matplotlib.pyplot as plt
-        for res in results:
+        plt.axis('off')  # command for hiding the axis.
+        for query, res in zip(queries, results):
             fig = plt.figure(figsize=(8, 8))
-            columns = 2
-            rows = 2
-            for i, file in enumerate(res[:4]):
+            #fig.suptitle(query)
+
+            columns = 5
+            rows = 1
+            for i, file in enumerate(res[:5]):
                 img = Image.open(open(f'{IMAGE_BASE_PATH}/{file}', 'rb'))
+                img = img.resize((224, 224))
                 sublot = fig.add_subplot(rows, columns, i + 1)
-                sublot.title.set_text(f'{file}')
+                #sublot.title.set_text(f'{file}')
                 plt.imshow(img)
+                plt.axis('off')
             plt.show()
 
     results = get_qualitative_results(queries, image_encoder,
@@ -913,7 +943,7 @@ def main_display(*args, **kwargs):
                                       top_k=5,
                                       top_k_first_phase=50)
 
-    display(results)
+    display(queries, results)
 
 
 if __name__ == '__main__':
