@@ -761,6 +761,7 @@ def get_qualitative_results(queries, image_encoder, text_encoder, text_tokenizer
         all_image_embeddings, image_filenames, pixel_bert_transformed_images, all_images_ids = build_image_embeddings(
             image_encoder, image_data_loader, dual_encoder_transform)
 
+        start_time = time.time()
         if text_tokenizer is not None:
             tokenized_captions = text_tokenizer(queries).to(device)
         else:
@@ -787,7 +788,7 @@ def get_qualitative_results(queries, image_encoder, text_encoder, text_tokenizer
             print(f' Result: "{query}": {resulting_filenames[:top_k]}')
         end_retrieving_time = time.time()
         print(
-            f' With first_phase_top_k {top_k_first_phase}. Time retrieving: {end_retrieving_time - start_retrieving_time}s')
+            f' With first_phase_top_k {top_k_first_phase}. Time retrieving: {end_retrieving_time - start_retrieving_time}s. Total time {end_retrieving_time - start_time}')
 
         return retrieved_image_filenames
 
@@ -907,10 +908,10 @@ def main_display(*args, **kwargs):
     text_encoder.load_state_dict(new_state_dict)
     text_encoder.eval()
 
-    #image_encoder = CLIPImageEncoder()
-    #text_encoder = CLIPTextEncoder()
+    image_encoder = CLIPImageEncoder()
+    text_encoder = CLIPTextEncoder()
     vilt_model = get_vilt_model(load_path=VILT_BASE_MODEL_LOAD_PATH)
-    #text_tokenizer = None
+    text_tokenizer = None
     queries = ['A man in a white shirt and shorts is running and jumping in the grass .', 'One toddler takes away the mouth piece of the other which makes him cry .', 'Two people with silly disguises at Christmas time']
 
     def display(queries, results: List[List[str]]):
