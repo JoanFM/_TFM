@@ -752,6 +752,10 @@ def get_qualitative_results(queries, image_encoder, text_encoder, text_tokenizer
     except:
         pass
 
+    image_encoder.to(device)
+    text_encoder.to(device)
+    vilt_model.to(device)
+
     with torch.no_grad():
         image_data_loader = get_image_data_loader(root=root, split_root=split_root, split=split, batch_size=batch_size,
                                                   collate_fn=collate_images, shuffle=False,
